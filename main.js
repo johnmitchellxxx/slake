@@ -58,6 +58,12 @@ function buildTrayMenu () {
     ...(update ? [{ label: `Get Slake ${update.version}…`, click: () => shell.openExternal(update.url) }] : []),
     { type: 'separator' },
     {
+      label: 'Message sound',
+      type: 'checkbox',
+      checked: readSettings().sound !== false,
+      click: (item) => { writeSettings({ ...readSettings(), sound: item.checked }); send('sound', item.checked); buildTrayMenu() }
+    },
+    {
       label: 'Open at login',
       type: 'checkbox',
       checked: login,
@@ -261,7 +267,7 @@ function state () {
     records[room.id] = [...room.records.values()].sort((a, b) => a.ts - b.ts).map((r) => present(room, r))
   }
   const s = readSettings()
-  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme), version: versionInfo() }
+  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme), version: versionInfo(), sound: s.sound !== false }
 }
 
 app.whenReady().then(async () => {
@@ -304,7 +310,7 @@ app.whenReady().then(async () => {
       setUnread(unreadCount + 1)
       if (Notification.isSupported()) {
         const body = r.kind === 'file' ? `📄 ${r.body.fname}` : r.body.text.slice(0, 200)
-        const n = new Notification({ title: `${r.name} in ${room.title}`, body })
+        const n = new Notification({ title: `${r.name} in ${room.title}`, body, silent: true })
         n.on('click', showWindow)
         n.show()
       }
@@ -419,7 +425,8 @@ app.whenReady().then(async () => {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      autoplayPolicy: 'no-user-gesture-required'
     }
   })
   win.loadFile(path.join(__dirname, 'ui', 'index.html'))

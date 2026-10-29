@@ -44,5 +44,6 @@ contextBridge.exposeInMainWorld('slake', {
   onTheme: (fn) => ipcRenderer.on('theme', (_e, t) => fn(t)),
   update: () => call('update'),
   openUpdate: () => call('openUpdate'),
-  onUpdate: (fn) => ipcRenderer.on('update', (_e, u) => fn(u))
+  onUpdate: (fn) => ipcRenderer.on('update', (_e, u) => fn(u)),
+  onSound: (fn) => ipcRenderer.on('sound', (_e, on) => fn(on))
 })

@@ -829,6 +829,39 @@ $('updateBanner').onclick = () => s.openUpdate()
 s.onUpdate(showUpdate)
 s.update().then(showUpdate).catch(() => {})
 
+// ---------- Message chime ----------
+// A soft two-note chime, made right here (no sound file). Plays when someone
+// else's message arrives and you're looking at another room or another app.
+let soundOn = true
+let audio = null
+let lastChime = 0
+function chime () {
+  const now = Date.now()
+  if (!soundOn || now - lastChime < 1500) return   // a burst of messages = one chime
+  lastChime = now
+  try {
+    audio = audio || new AudioContext()
+    const t = audio.currentTime
+    const out = audio.createGain()
+    out.gain.value = 0.12
+    out.connect(audio.destination)
+    for (const [freq, at] of [[659.25, 0], [987.77, 0.11]]) {   // E5, then B5
+      const osc = audio.createOscillator()
+      const g = audio.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      g.gain.setValueAtTime(0, t + at)
+      g.gain.linearRampToValueAtTime(1, t + at + 0.015)
+      g.gain.exponentialRampToValueAtTime(0.001, t + at + 0.9)
+      osc.connect(g)
+      g.connect(out)
+      osc.start(t + at)
+      osc.stop(t + at + 1)
+    }
+  } catch {}
+}
+s.onSound((on) => { soundOn = on })
+
 // ---------- Live updates ----------
 s.onRecord((r) => {
   if (!records[r.room]) records[r.room] = []
@@ -838,6 +871,8 @@ s.onRecord((r) => {
   if (r.kind === 'profile') { rebuildAvatars(); renderAll(); return }
   rebuildClashes()
   if (r.room !== current && (r.kind === 'msg' || r.kind === 'file')) unread.add(r.room)
+  const fromOthers = (r.kind === 'msg' || r.kind === 'file') && r.author !== me.publicKey && Date.now() - r.ts < 2 * 60 * 1000
+  if (fromOthers && (r.room !== current || !document.hasFocus())) chime()
   renderSidebar()
   if (r.room === current) renderMessages()
 })
@@ -865,6 +900,7 @@ async function refresh () {
   rooms = st.rooms
   records = st.records
   online = new Set(st.online || [])
+  soundOn = st.sound !== false
   rebuildAvatars()
   showVersion(st.version)
   applyTheme(st.themeCSS)
