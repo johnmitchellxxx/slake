@@ -52,7 +52,7 @@
       ],
       "category": "public.app-category.social-networking",
       "icon": "build/icon.png",
-      "identity": "-",
+      "identity": null,
       "artifactName": "Slake-${version}-${arch}.${ext}"
     },
     "dmg": {
@@ -87,6 +87,7 @@
         "repo": "slake",
         "releaseType": "release"
       }
-    ]
+    ],
+    "afterPack": "build/afterPack.js"
   }
 }
