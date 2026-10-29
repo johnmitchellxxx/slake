@@ -1,0 +1,40 @@
+/* Showfile — the lighting console at front of house. Matte black, yellow
+   readouts, and every message gets a cue number down the left. */
+:root {
+  --bg: #1a1b1d;
+  --panel: #121315;
+  --panel-2: #26282b;
+  --text: #d9d4c7;
+  --muted: #7f7b72;
+  --accent: #ffc400;
+  --accent-text: #1a1400;
+  --line: #2e3034;
+  --radius: 3px;
+  --font: "DIN Alternate", Bahnschrift, "Arial Narrow", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --wordmark: "DIN Condensed", "Bahnschrift Condensed", "Arial Narrow", sans-serif;
+}
+
+.wordmark { font-style: normal; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.wordmark.small { font-size: 22px; }
+
+/* The room name reads like the console's display. */
+.room-head { background: #0d0e0f; }
+.room-title > div:first-child { font-family: var(--mono); color: var(--accent); letter-spacing: 0.06em; font-size: 16px; }
+.hash { color: var(--muted); }
+
+/* Cue numbers. */
+.messages { counter-reset: cue; }
+.msg { position: relative; padding-left: 52px; }
+.msg:not(.cont) { counter-increment: cue; }
+.msg:not(.cont)::before {
+  content: "Q" counter(cue); position: absolute; left: 0; top: 2px; width: 44px;
+  font-family: var(--mono); font-size: 12px; color: var(--accent); text-align: right;
+}
+.time { font-family: var(--mono); font-size: 11px; }
+.avatar { border-radius: 3px; }
+
+.space li.active { background: transparent; color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); border-radius: 0; }
+.space li .live { box-shadow: 0 0 6px #3fcf7f; }
+.composer textarea { font-family: var(--mono); font-size: 14px; }
+.day, .note { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; }

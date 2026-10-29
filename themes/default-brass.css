@@ -1,0 +1,5 @@
+/* Default, in Brass. Same look as the default, different accent color. */
+:root {
+  --accent: #e8b04b;
+  --accent-text: #231600;
+}

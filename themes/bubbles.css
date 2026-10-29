@@ -1,0 +1,40 @@
+/* Bubbles — a texting layout. Your messages on the right in violet-to-blue
+   bubbles, everyone else's on the left. Rounded type. */
+:root {
+  --bg: #120d1a;
+  --panel: #0e0a15;
+  --panel-2: #241b31;
+  --text: #f3eefa;
+  --muted: #9a8fb0;
+  --accent: #7b5cff;
+  --accent-text: #ffffff;
+  --line: #231a30;
+  --radius: 18px;
+  --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  --wordmark: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+}
+
+.wordmark { font-style: normal; font-weight: 800; letter-spacing: -0.03em; }
+.room-head, .composer { border-color: transparent; }
+.composer textarea { border-radius: 22px; padding: 10px 16px; }
+.composer button { border-radius: 22px; }
+
+/* Everyone else: a soft bubble under their name. */
+.msg { margin-top: 12px; }
+.msg .body {
+  justify-self: start; background: var(--panel-2); padding: 8px 14px;
+  border-radius: 18px 18px 18px 6px; max-width: min(560px, 78%);
+}
+.msg.cont { margin-top: 3px; }
+.msg .body:has(.file) { background: none; padding: 0; }
+
+/* You: right-aligned, no name or picture, the gradient bubble. */
+.msg[data-mine="true"] { grid-template-columns: 1fr; }
+.msg[data-mine="true"] .avatar, .msg[data-mine="true"] .meta { display: none; }
+.msg[data-mine="true"] .body, .msg[data-mine="true"].cont .body {
+  grid-column: 1; justify-self: end; color: #fff;
+  background: linear-gradient(135deg, #7b5cff, #3d8bff);
+  border-radius: 18px 18px 6px 18px;
+}
+.msg[data-mine="true"] .body a { color: #fff; }
+.note, .day { text-align: center; margin-left: 0; }

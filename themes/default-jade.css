@@ -1,0 +1,5 @@
+/* Default, in Jade. Same look as the default, different accent color. */
+:root {
+  --accent: #3ccf91;
+  --accent-text: #04150d;
+}
