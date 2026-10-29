@@ -124,14 +124,14 @@ Each `.css` file in there is a theme; copy one, rename it, change the colors
 at the top, and save — the app repaints instantly. Included:
 
 - **Default**, in Lake (blue), Jade, Iris, Rose or Brass
-- **Glass**: a see-through, frosted window on Mac; follows light/dark mode
 - **Bubbles**: a texting layout, your messages on the right
 - **Showfile**: a lighting console, with a cue number on every message
 - **After Hours**: neon signs at night
-- **Swiss**: white page, black type, one red
+- **Necklace**: Lake Merritt after dark, with the string of lights across each room
+- **Terminal**: green on black
 
 Themes can restyle anything, not just colors. Look at `bubbles.css` for an
-example that changes the layout, and `glass.css` for the see-through window.
+example that changes the layout, and `necklace.css` for one that draws its own decoration.
 
 **Who's online.** A green dot on someone's picture means their Slake is
 connected right now. Each room's header lists who's on.

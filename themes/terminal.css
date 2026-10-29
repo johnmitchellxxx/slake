@@ -1,0 +1,18 @@
+/* Terminal — green on black, square corners, all monospace.
+   A good example of going beyond colors: you can restyle anything. */
+:root {
+  --bg: #050805;
+  --panel: #0a100a;
+  --panel-2: #101a10;
+  --text: #9cff9c;
+  --muted: #3f8a3f;
+  --accent: #33ff66;
+  --accent-text: #000000;
+  --line: #1c2e1c;
+  --radius: 0px;
+  --font: var(--mono);
+  --wordmark: var(--mono);
+  --msg-size: 14px;
+}
+.avatar { border-radius: 0; filter: grayscale(1) brightness(1.4); }
+.wordmark::before { content: "> "; }

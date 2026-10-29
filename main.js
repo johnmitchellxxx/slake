@@ -125,11 +125,11 @@ function writeSettings (s) { fs.writeFileSync(settingsFile(), JSON.stringify(s, 
 // folder only if you never edited them.
 const RETIRED = {
   'grapevine.css': ['c3d67892dcc1931ece784b8482e0d955ba3c1fd9ddcd10cde9734d4ed8be6798'],
-  'terminal.css': ['472a38e64e9d56541a90c6984cdeef533fc07b307f3acd6d617bda14cc5074ce'],
-  'necklace.css': ['9ef60f8303d47202181638c929e3040b024e2f9fac2240e8630ed1dd600f86bf'],
   'velvet.css': ['4bb7ab4608bcbe86a358230924ab0493a22c8a9b5573b72a9a2ddad1ddaa3e66'],
   'screenprint.css': ['d0415deed82e526e087295b77a9b5f607630a93298c800f36864dcb3b206dc4f'],
-  'ultraviolet.css': ['d574699df6f734db6c833f70386d5e9941fd1dd855c3eaabff9fa154dd61f895']
+  'ultraviolet.css': ['d574699df6f734db6c833f70386d5e9941fd1dd855c3eaabff9fa154dd61f895'],
+  'glass.css': ['615f459a4f6ce6d53af6d021cbed71393f266eff4d9537f3ded48354666ce261'],
+  'swiss.css': ['ef1ba993a6ab14433597af096e507bc15aae4703d1eec5e1d6fd05a21411df6c']
 }
 
 const sha = (buf) => require('crypto').createHash('sha256').update(buf).digest('hex')
