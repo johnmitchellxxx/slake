@@ -141,6 +141,15 @@ function themeCSS (name) {
   try { return fs.readFileSync(path.join(themesDir(), path.basename(name) + '.css'), 'utf8') } catch { return '' }
 }
 
+// A theme can ask for a see-through window by including the words
+// "slake: glass" anywhere (usually in its top comment). Mac only.
+function applyWindowLook (css) {
+  if (!win || win.isDestroyed()) return
+  const glass = isMac && /slake:\s*glass/i.test(css || '')
+  win.setVibrancy(glass ? 'under-window' : null)
+  win.setBackgroundColor(glass ? '#00000000' : '#16161d')
+}
+
 function send (channel, data) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, data)
 }
@@ -228,6 +237,7 @@ app.whenReady().then(async () => {
   fs.watch(themesDir(), () => {
     const s = readSettings()
     send('theme', { themes: listThemes(), theme: s.theme, css: themeCSS(s.theme) })
+    applyWindowLook(themeCSS(s.theme))
   })
 
   const handle = (name, fn) => ipcMain.handle(name, async (_e, arg) => {
@@ -312,6 +322,7 @@ app.whenReady().then(async () => {
     const st = readSettings()
     const recentThemes = [t, ...(st.recentThemes || []).filter((x) => x !== t)].slice(0, 50)
     writeSettings({ ...st, theme: t, recentThemes })
+    applyWindowLook(themeCSS(t))
     return { css: themeCSS(t), themes: listThemes() }
   })
 
@@ -332,6 +343,7 @@ app.whenReady().then(async () => {
     }
   })
   win.loadFile(path.join(__dirname, 'ui', 'index.html'))
+  applyWindowLook(themeCSS(readSettings().theme))
   // Links in messages open in the real browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url)

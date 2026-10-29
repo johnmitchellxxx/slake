@@ -287,6 +287,8 @@ function renderMessages () {
     const cont = prev && prev.author === m.author && m.ts - prev.ts < 5 * 60 * 1000
     const row = el('div', 'msg' + (cont ? ' cont' : ''))
     row.dataset.msg = m.id
+    row.dataset.mine = String(m.author === me.publicKey)
+    row.dataset.kind = m.kind
     row.dataset.person = m.author
     row.dataset.name = m.name
     const b = badge(m.author)
@@ -778,4 +780,5 @@ async function refresh () {
   renderAll()
 }
 
+document.documentElement.dataset.platform = /Mac/.test(navigator.platform) ? 'mac' : /Win/.test(navigator.platform) ? 'win' : 'other'
 refresh()
