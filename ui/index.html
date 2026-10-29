@@ -46,7 +46,7 @@
     <main class="room">
       <div id="noRoom" class="no-room" hidden>
         <h2>This is your space.</h2>
-        <p>Make a room with <b>+ new room</b> on the left, then invite people to it.<br>
+        <p>Make a room with <b>+ new room</b> on the left. Right-click any room for its invite and members.<br>
            Got an invite from someone? Paste it in the box at the bottom left.</p>
       </div>
 
@@ -55,11 +55,6 @@
           <div class="room-title">
             <div><span class="hash">#</span><span id="roomName"></span></div>
             <div id="roomSub" class="room-sub"></div>
-          </div>
-          <div class="room-actions">
-            <button id="inviteBtn" class="secondary">Copy invite</button>
-            <button id="membersBtn" class="secondary">Members</button>
-            <button id="leaveBtn" class="ghost">Leave room</button>
           </div>
         </header>
 
@@ -76,7 +71,7 @@
               <button id="closeMembers" class="ghost" aria-label="Close">✕</button>
             </div>
             <ul id="memberList"></ul>
-            <p class="hint">Removing someone gives everyone else a new room key. They keep what they already saw, but can't follow anything new.</p>
+            <p class="hint">Right-click someone to remove them. Everyone else gets a new room key; the removed person keeps what they already saw but can't follow anything new.</p>
           </aside>
         </div>
 

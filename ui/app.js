@@ -33,24 +33,6 @@ function toast (text) {
   toast.timer = setTimeout(() => { t.hidden = true }, 2200)
 }
 
-// A button that needs two clicks, so nothing drastic happens by accident.
-function twoClick (btn, confirmText, action) {
-  const original = btn.textContent
-  btn.onclick = async () => {
-    if (!btn.classList.contains('confirm')) {
-      btn.classList.add('confirm')
-      btn.textContent = confirmText
-      clearTimeout(btn.timer)
-      btn.timer = setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = original }, 4000)
-      return
-    }
-    clearTimeout(btn.timer)
-    btn.classList.remove('confirm')
-    btn.textContent = original
-    try { await action() } catch (e) { toast(e.message) }
-  }
-}
-
 function applyTheme (css) { $('theme').textContent = css || '' }
 const roomById = (id) => rooms.find((r) => r.id === id)
 
@@ -70,6 +52,7 @@ function roomItem (r) {
   if (r.removed) li.classList.add('gone')
   else if (r.online > 0 && r.id !== current && !unread.has(r.id)) li.append(el('span', 'live'))
   li.title = r.removed ? 'You were removed from this room' : r.online ? `${r.online} online` : 'Nobody else online'
+  li.dataset.room = r.id
   li.onclick = () => openRoom(r.id)
   return li
 }
@@ -159,9 +142,6 @@ function renderHeader () {
   const where = r.mine ? 'In your space' : `In ${r.ownerName}'s space`
   const who = r.removed ? 'removed' : r.online === 0 ? 'nobody else online' : `${r.online} online`
   $('roomSub').textContent = `${where} · ${who}`
-  $('inviteBtn').hidden = !r.mine
-  $('membersBtn').hidden = !r.mine
-  $('leaveBtn').hidden = r.mine || r.removed
   $('removedBanner').hidden = !r.removed
   $('composer').classList.toggle('disabled', r.removed)
   $('text').placeholder = r.removed ? '' : `Message #${r.title}`
@@ -174,13 +154,10 @@ function renderMembers (r) {
   list.textContent = ''
   for (const m of r.members || []) {
     const li = el('li')
+    li.dataset.person = m.key
+    li.dataset.name = m.name
     li.append(el('span', 'badge', badge(m.key).emoji), el('span', 'who', m.name))
     if (m.owner) li.append(el('span', 'tag', 'owner'))
-    else {
-      const btn = el('button', 'ghost', 'Remove')
-      twoClick(btn, 'Sure?', async () => { await s.removeMember(r.id, m.key); toast(`${m.name} removed`) })
-      li.append(btn)
-    }
     list.append(li)
   }
 }
@@ -232,6 +209,9 @@ function renderMessages () {
     }
     const cont = prev && prev.author === m.author && m.ts - prev.ts < 5 * 60 * 1000
     const row = el('div', 'msg' + (cont ? ' cont' : ''))
+    row.dataset.msg = m.id
+    row.dataset.person = m.author
+    row.dataset.name = m.name
     const b = badge(m.author)
     const av = el('div', 'avatar', [...b.emoji][0])
     av.style.background = b.color
@@ -249,7 +229,7 @@ function renderMessages () {
     const r = roomById(current)
     if (r && !r.removed) {
       box.append(el('p', 'empty', r.mine
-        ? `Nothing in #${r.title} yet. Copy the invite to bring people in.`
+        ? `Nothing in #${r.title} yet. Right-click the room to copy its invite.`
         : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
     }
   }
@@ -264,16 +244,102 @@ function renderAll () {
 }
 
 // ---------- Room actions ----------
-$('inviteBtn').onclick = async () => {
-  try { await s.copyInvite(current); toast('Invite copied. Anyone with it can join this room, so share it privately.') } catch (e) { toast(e.message) }
+// ---------- Right-click menus ----------
+// Everything you can do to a room or a person lives here, so the window
+// itself stays clean.
+
+async function copyInvite (r) {
+  await s.copyInvite(r.id)
+  toast('Invite copied. Anyone with it can join, so share it privately.')
 }
-$('membersBtn').onclick = () => { membersOpen = !membersOpen; renderHeader() }
-$('closeMembers').onclick = () => { membersOpen = false; renderHeader() }
-twoClick($('leaveBtn'), 'Click again to leave', async () => {
-  await s.leaveRoom(current)
-  current = null
+
+function showMembers (r) {
+  if (current !== r.id) openRoom(r.id)
+  membersOpen = true
+  renderHeader()
+}
+
+async function leave (r) {
+  const ok = await s.confirm({ action: 'Leave', message: `Leave #${r.title}?`, detail: `It comes off your sidebar. To come back you'll need a new invite from ${r.ownerName}.` })
+  if (!ok) return
+  await s.leaveRoom(r.id)
+  if (current === r.id) current = null
   await refresh()
+}
+
+async function removePerson (r, key, name) {
+  const ok = await s.confirm({ action: 'Remove', message: `Remove ${name} from #${r.title}?`, detail: "They keep what they've already seen, but won't get anything new." })
+  if (!ok) return
+  await s.removeMember(r.id, key)
+  toast(`${name} removed`)
+}
+
+function roomMenu (r) {
+  if (r.removed) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
+  if (r.mine) return [{ id: 'invite', label: 'Copy invite' }, { id: 'members', label: 'Members…' }]
+  return [{ id: 'leave', label: 'Leave room…' }]
+}
+
+async function runRoomChoice (r, choice) {
+  if (choice === 'invite') await copyInvite(r)
+  if (choice === 'members') showMembers(r)
+  if (choice === 'leave') await leave(r)
+  if (choice === 'dismiss') { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }
+}
+
+document.addEventListener('contextmenu', async (e) => {
+  e.preventDefault()
+  const t = e.target
+  try {
+    // Typing boxes get the usual cut / copy / paste.
+    if (t.closest('input, textarea')) {
+      await s.menu([{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' }])
+      return
+    }
+
+    const items = []
+    const selected = String(window.getSelection() || '').trim()
+    if (selected) items.push({ role: 'copy' })
+
+    const roomEl = t.closest('[data-room]')
+    const inHeader = t.closest('.room-head')
+    const room = roomEl ? roomById(roomEl.dataset.room) : inHeader ? roomById(current) : null
+    if (room) {
+      if (items.length) items.push({ type: 'separator' })
+      items.push(...roomMenu(room))
+      const choice = await s.menu(items)
+      await runRoomChoice(room, choice)
+      return
+    }
+
+    const msgEl = t.closest('[data-msg]')
+    const personEl = t.closest('[data-person]')
+    const r = roomById(current)
+    if (msgEl && !selected) {
+      const m = (records[current] || []).find((x) => x.id === msgEl.dataset.msg)
+      if (m) items.push({ id: 'copyMsg', label: 'Copy message' })
+    }
+    let target = null
+    if (personEl && r && r.mine && !r.removed) {
+      const key = personEl.dataset.person
+      const isMember = (r.members || []).some((x) => x.key === key)
+      if (key !== me.publicKey && key !== r.owner && isMember) {
+        target = { key, name: personEl.dataset.name }
+        if (items.length) items.push({ type: 'separator' })
+        items.push({ id: 'remove', label: `Remove ${target.name} from #${r.title}…` })
+      }
+    }
+    if (!items.length) return
+    const choice = await s.menu(items)
+    if (choice === 'copyMsg') {
+      const m = (records[current] || []).find((x) => x.id === msgEl.dataset.msg)
+      await s.copyText(m.text)
+      toast('Copied')
+    }
+    if (choice === 'remove' && target) await removePerson(r, target.key, target.name)
+  } catch (err) { toast(err.message) }
 })
+
 $('dismissBtn').onclick = async () => {
   try { await s.leaveRoom(current); current = null; await refresh() } catch (e) { toast(e.message) }
 }

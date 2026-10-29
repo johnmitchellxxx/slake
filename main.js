@@ -1,6 +1,6 @@
 // The desktop app wrapper: opens the window and hands things back and forth
 // between the engine (core.js) and the screen.
-const { app, BrowserWindow, ipcMain, Notification, shell, clipboard } = require('electron')
+const { app, BrowserWindow, ipcMain, Notification, shell, clipboard, Menu, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { Slake } = require('./core')
@@ -118,6 +118,35 @@ app.whenReady().then(async () => {
   handle('removeMember', ({ room, key }) => slake.removeMember(room, key))
   handle('leaveRoom', (room) => slake.leaveRoom(room))
   handle('openThemes', () => shell.openPath(themesDir()))
+  handle('copyText', (t) => clipboard.writeText(String(t || '')))
+
+  // Right-click menus. The page describes the items; we show a real Mac/PC
+  // menu and report back which one was picked (or null).
+  const ROLES = new Set(['cut', 'copy', 'paste', 'selectAll'])
+  handle('menu', (items) => new Promise((resolve) => {
+    let done = false
+    const finish = (v) => { if (!done) { done = true; resolve(v) } }
+    const template = (Array.isArray(items) ? items : []).slice(0, 30).map((i) => {
+      if (i.type === 'separator') return { type: 'separator' }
+      if (i.role && ROLES.has(i.role)) return { role: i.role }
+      return { label: String(i.label || '').slice(0, 80), enabled: i.enabled !== false, click: () => finish(i.id) }
+    })
+    if (!template.length) return finish(null)
+    Menu.buildFromTemplate(template).popup({ window: win, callback: () => setTimeout(() => finish(null), 50) })
+  }))
+
+  // "Are you sure?" for anything drastic, as a proper system dialog.
+  handle('confirm', async ({ message, detail, action }) => {
+    const r = await dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: [String(action || 'OK'), 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      message: String(message || ''),
+      detail: detail ? String(detail) : undefined
+    })
+    return r.response === 0
+  })
   handle('setTheme', (t) => {
     writeSettings({ ...readSettings(), theme: t })
     return { css: themeCSS(t) }

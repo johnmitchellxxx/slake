@@ -23,6 +23,18 @@ npm start
 
 The first `npm install` takes a minute (it downloads the app shell).
 
+**On Windows:** same idea. Install Node.js (LTS) from https://nodejs.org and
+Git from https://git-scm.com, then in Command Prompt or PowerShell:
+
+```
+git clone https://github.com/johnmitchellxxx/slake.git
+cd slake
+npm install
+npm start
+```
+
+After that, double-click `start-slake.bat` in the slake folder to launch.
+
 **One-click launch:** double-click `start-slake.command` in this folder. To put it
 on a Stream Deck, drag the **Open** action (under System) onto a key and choose
 that file as the App/File. Pressing the key opens Terminal and starts Slake.
@@ -64,8 +76,21 @@ commands, and paste your room invite. That's it — no accounts, no sign-up.
 
 Click **Edit** next to the theme picker. That opens your themes folder.
 Each `.css` file in there is a theme; copy one, rename it, change the colors
-at the top, and save — the app repaints instantly. Two examples are included:
-`grapevine.css` (light, work-ready) and `terminal.css` (green on black).
+at the top, and save — the app repaints instantly. Included:
+
+- `necklace.css`: Lake Merritt after dark, with the string of lights hung across each room
+- `velvet.css`: oxblood drape, one warm spotlight, theatrical serif titles
+- `screenprint.css`: a two-ink gig poster, slightly off-register, halftone margins
+- `ultraviolet.css`: deep violet with a sunset band under every room
+- `grapevine.css`: light and calm, good for work
+- `terminal.css`: green on black
+
+Themes can restyle anything, not just colors. Look at `necklace.css` for an
+example that draws its own decoration.
+
+**Right-click is where the actions live.** Right-click a room for its invite,
+members, or to leave it. Right-click a message to copy it, or (in your own
+rooms) to remove its author.
 
 Coder friends can go further: the screen is plain HTML/CSS/JS in `ui/`,
 the networking is all in `core.js`.
