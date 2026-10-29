@@ -123,15 +123,15 @@ Click **Edit** next to the theme picker. That opens your themes folder.
 Each `.css` file in there is a theme; copy one, rename it, change the colors
 at the top, and save — the app repaints instantly. Included:
 
-- `necklace.css`: Lake Merritt after dark, with the string of lights hung across each room
-- `velvet.css`: oxblood drape, one warm spotlight, theatrical serif titles
-- `screenprint.css`: a two-ink gig poster, slightly off-register, halftone margins
-- `ultraviolet.css`: deep violet with a sunset band under every room
-- `grapevine.css`: light and calm, good for work
-- `terminal.css`: green on black
+- **Default**, in Lake (blue), Jade, Iris, Rose or Brass
+- **Glass**: a see-through, frosted window on Mac; follows light/dark mode
+- **Bubbles**: a texting layout, your messages on the right
+- **Showfile**: a lighting console, with a cue number on every message
+- **After Hours**: neon signs at night
+- **Swiss**: white page, black type, one red
 
-Themes can restyle anything, not just colors. Look at `necklace.css` for an
-example that draws its own decoration.
+Themes can restyle anything, not just colors. Look at `bubbles.css` for an
+example that changes the layout, and `glass.css` for the see-through window.
 
 **Who's online.** A green dot on someone's picture means their Slake is
 connected right now. Each room's header lists who's on.

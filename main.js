@@ -120,13 +120,50 @@ function readSettings () {
 function writeSettings (s) { fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2)) }
 
 // First run: copy the bundled example themes somewhere friends can edit them.
+// Themes that shipped in earlier versions and have since been retired, by the
+// fingerprint of the exact file we shipped. They're removed from your themes
+// folder only if you never edited them.
+const RETIRED = {
+  'grapevine.css': ['c3d67892dcc1931ece784b8482e0d955ba3c1fd9ddcd10cde9734d4ed8be6798'],
+  'terminal.css': ['472a38e64e9d56541a90c6984cdeef533fc07b307f3acd6d617bda14cc5074ce'],
+  'necklace.css': ['9ef60f8303d47202181638c929e3040b024e2f9fac2240e8630ed1dd600f86bf'],
+  'velvet.css': ['4bb7ab4608bcbe86a358230924ab0493a22c8a9b5573b72a9a2ddad1ddaa3e66'],
+  'screenprint.css': ['d0415deed82e526e087295b77a9b5f607630a93298c800f36864dcb3b206dc4f'],
+  'ultraviolet.css': ['d574699df6f734db6c833f70386d5e9941fd1dd855c3eaabff9fa154dd61f895']
+}
+
+const sha = (buf) => require('crypto').createHash('sha256').update(buf).digest('hex')
+
+// Copy the bundled themes into your themes folder. A theme you haven't touched
+// gets updated when Slake ships a better version; one you've edited is left alone.
 function seedThemes () {
   fs.mkdirSync(themesDir(), { recursive: true })
+  const st = readSettings()
+  const shipped = st.shippedThemes || {}   // file -> fingerprint of what we last copied in
   const bundled = path.join(__dirname, 'themes')
-  for (const f of fs.readdirSync(bundled)) {
+  const names = new Set(fs.readdirSync(bundled).filter((f) => f.endsWith('.css')))
+  for (const f of names) {
+    const src = fs.readFileSync(path.join(bundled, f))
     const dest = path.join(themesDir(), f)
-    if (!fs.existsSync(dest)) fs.copyFileSync(path.join(bundled, f), dest)
+    let mine = null
+    try { mine = sha(fs.readFileSync(dest)) } catch {}
+    if (mine === null || (mine === shipped[f] && mine !== sha(src))) {
+      fs.writeFileSync(dest, src)
+      shipped[f] = sha(src)
+    } else if (!shipped[f] && mine === sha(src)) shipped[f] = mine
   }
+  for (const f of fs.readdirSync(themesDir())) {
+    if (names.has(f) || !f.endsWith('.css')) continue
+    const known = [...(RETIRED[f] || []), shipped[f]].filter(Boolean)
+    try {
+      if (known.includes(sha(fs.readFileSync(path.join(themesDir(), f))))) {
+        fs.unlinkSync(path.join(themesDir(), f))
+        delete shipped[f]
+      }
+    } catch {}
+  }
+  const current = st.theme && st.theme !== 'default' && !fs.existsSync(path.join(themesDir(), st.theme + '.css')) ? 'default' : st.theme
+  writeSettings({ ...st, theme: current || 'default', shippedThemes: shipped })
 }
 
 // Themes you've used most recently come first; the rest follow alphabetically.

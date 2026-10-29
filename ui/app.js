@@ -732,11 +732,19 @@ $('composer').onsubmit = async (e) => {
 }
 
 // ---------- Themes ----------
+// "default-jade" reads as "Default · Jade", "after-hours" as "After Hours".
+function themeLabel (t) {
+  const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1)
+  if (t === 'default') return 'Default · Lake'
+  if (t.startsWith('default-')) return 'Default · ' + t.slice(8).split('-').map(cap).join(' ')
+  return t.split(/[-_]/).map(cap).join(' ')
+}
+
 function renderThemes (themes, theme) {
   const sel = $('themeSelect')
   sel.textContent = ''
   for (const t of themes) {
-    const o = el('option', null, t)
+    const o = el('option', null, themeLabel(t))
     o.value = t
     if (t === theme) o.selected = true
     sel.append(o)
