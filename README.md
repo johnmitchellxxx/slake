@@ -72,6 +72,26 @@ commands, and paste your room invite. That's it — no accounts, no sign-up.
 - **History.** When you come online you swap notes with whoever's in your
   rooms and catch up on what you missed.
 
+## Files are fleeting
+
+Drag a file onto a room (or click **+**), pick how long it lasts (**1 hour,
+1 day or 1 week**), and send. It goes straight from your computer to the
+others in the room. There's no upload, no server, and no size limit.
+Files up to 50 MB download by themselves; bigger ones have a **Download**
+button. Save what you want to keep.
+
+When time's up, every copy of Slake deletes its copy. What stays is a stub
+with the file name, when it was sent and when it disappeared. Right-click a
+stub to **Ask [them] to resend**, or **Send it again…** if it was yours.
+Slake isn't storage; it's delivery.
+
+Someone who has the file needs to be online for you to get it.
+
+## Search
+
+**⌘F** (Ctrl+F on Windows) searches every room, messages and file names.
+Click a result to jump to it.
+
 ## Make it yours
 
 Click **Edit** next to the theme picker. That opens your themes folder.
@@ -102,6 +122,7 @@ On a Mac: `~/Library/Application Support/slake/`
   that identity is gone (there's no "forgot password").
 - `data/rooms/<id>.json` — a room's name, owner and keys.
 - `data/rooms/<id>.ndjson` — that room's history, one record per line.
+- `data/files/` — files that haven't disappeared yet. Slake empties this on its own.
 - `themes/` — your themes.
 
 ## Known limits (on purpose, for now)

@@ -51,6 +51,10 @@
       </div>
 
       <div id="roomView" class="room-view" hidden>
+        <div id="searchBar" class="search" hidden>
+          <input id="searchInput" autocomplete="off" placeholder="Search every room, messages and file names">
+          <button id="searchClose" class="ghost" aria-label="Close search">✕</button>
+        </div>
         <header class="room-head">
           <div class="room-title">
             <div><span class="hash">#</span><span id="roomName"></span></div>
@@ -65,6 +69,8 @@
 
         <div class="room-body">
           <div id="messages" class="messages" aria-live="polite"></div>
+          <div id="results" class="messages results" hidden></div>
+          <div id="dropZone" class="drop" hidden>Drop to send</div>
           <aside id="membersPanel" class="members" hidden>
             <div class="members-head">
               <span>Members</span>
@@ -75,7 +81,20 @@
           </aside>
         </div>
 
+        <div id="pending" class="pending" hidden>
+          <span class="pending-file"><span class="file-icon">📄</span><span id="pendingName" class="file-name"></span><span id="pendingSize" class="file-size"></span></span>
+          <span class="ttl" role="radiogroup" aria-label="How long it lasts">
+            <span class="ttl-label">Lasts</span>
+            <button type="button" data-ttl="3600000">1 hour</button>
+            <button type="button" data-ttl="86400000" class="on">1 day</button>
+            <button type="button" data-ttl="604800000">1 week</button>
+          </span>
+          <button type="button" id="pendingSend">Send file</button>
+          <button type="button" id="pendingCancel" class="ghost" aria-label="Cancel">✕</button>
+        </div>
+
         <form id="composer" class="composer">
+          <button type="button" id="attachBtn" class="ghost attach" title="Send a file, or drag one in" aria-label="Send a file">+</button>
           <textarea id="text" rows="1" maxlength="4000" placeholder="Say something…"></textarea>
           <button type="submit">Send</button>
         </form>

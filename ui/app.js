@@ -8,6 +8,8 @@ let records = {}        // room id -> [record]
 let current = null      // open room id
 let membersOpen = false
 const unread = new Set()
+let pending = null      // file chosen but not sent yet: { path, name, size, ttl }
+let searching = false
 
 // Each person gets a stable color + emoji pair made from their key,
 // so a fake "Duke" won't match the real one.
@@ -126,6 +128,7 @@ $('joinForm').onsubmit = async (e) => {
 
 // ---------- Room ----------
 function openRoom (id) {
+  if (id !== current) { pending = null; showPending() }
   current = id
   unread.delete(id)
   if (!roomById(id)) current = null
@@ -202,7 +205,7 @@ function renderMessages () {
       prevDay = fmtDay(m.ts)
       prev = null
     }
-    if (m.kind !== 'msg') {
+    if (m.kind !== 'msg' && m.kind !== 'file') {
       box.append(el('div', 'note', `${noteText(m)} · ${fmtTime(m.ts)}`))
       prev = null
       continue
@@ -220,12 +223,13 @@ function renderMessages () {
     bd.title = 'Identity check: the same person always has the same pair'
     meta.append(el('span', 'name', m.name), bd, el('span', 'time', fmtTime(m.ts)))
     const body = el('div', 'body')
-    fillBody(body, m.text)
+    if (m.kind === 'file') body.append(fileCard(m))
+    else fillBody(body, m.text)
     row.append(av, meta, body)
     box.append(row)
     prev = m
   }
-  if (!list.some((r) => r.kind === 'msg')) {
+  if (!list.some((r) => r.kind === 'msg' || r.kind === 'file')) {
     const r = roomById(current)
     if (r && !r.removed) {
       box.append(el('p', 'empty', r.mine
@@ -236,6 +240,191 @@ function renderMessages () {
   const last = list[list.length - 1]
   if (atBottom || (last && last.author === me.publicKey)) box.scrollTop = box.scrollHeight
 }
+
+// ---------- Files ----------
+function fmtSize (n) {
+  if (n < 1024) return n + ' B'
+  const u = ['KB', 'MB', 'GB', 'TB']
+  let i = -1
+  do { n /= 1024; i++ } while (n >= 1024 && i < u.length - 1)
+  return (n >= 10 ? n.toFixed(0) : n.toFixed(1)) + ' ' + u[i]
+}
+
+function fmtLeft (ms) {
+  const m = Math.max(1, Math.round(ms / 60000))
+  if (m < 60) return m + (m === 1 ? ' minute' : ' minutes')
+  const h = Math.round(m / 60)
+  if (h < 48) return h + (h === 1 ? ' hour' : ' hours')
+  const d = Math.round(h / 24)
+  return d + ' days'
+}
+
+const fmtDate = (ts) => new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' })
+const expiresAt = (f) => f.ts + f.ttl
+const isGone = (f) => Date.now() >= expiresAt(f) || (f.status && f.status.state === 'expired')
+
+function fileCard (f) {
+  const card = el('div', 'file')
+  card.dataset.file = f.fid
+  if (isGone(f)) {
+    card.classList.add('gone')
+    card.append(el('span', 'file-icon', '📄'), el('span', 'file-name', f.fname),
+      el('span', 'file-sub', `Sent ${fmtDate(f.ts)} · disappeared ${fmtDate(expiresAt(f))}`))
+    return card
+  }
+  const st = f.status || { state: 'waiting' }
+  const left = `Disappears in ${fmtLeft(expiresAt(f) - Date.now())}`
+  let sub = `${fmtSize(f.size)} · ${left}`
+  const act = el('span', 'file-act')
+  if (st.state === 'ready') {
+    const b = el('button', 'secondary', 'Save…')
+    b.onclick = async () => { try { if (await s.saveFile(f.fid, f.fname)) toast('Saved') } catch (e) { toast(e.message) } }
+    act.append(b)
+  } else if (st.state === 'available') {
+    const b = el('button', 'secondary', 'Download')
+    b.onclick = async () => { try { await s.download(f.room, f.fid) } catch (e) { toast(e.message) } }
+    act.append(b)
+  } else if (st.state === 'downloading') {
+    sub = `${Math.floor((st.progress || 0) * 100)}% of ${fmtSize(f.size)} · ${left}`
+  } else {
+    sub = `${fmtSize(f.size)} · waiting for someone who has it to come online`
+  }
+  card.append(el('span', 'file-icon', '📄'), el('span', 'file-name', f.fname), el('span', 'file-sub', sub), act)
+  if (st.state === 'downloading') {
+    const bar = el('span', 'bar')
+    const fill = el('span')
+    fill.style.width = Math.floor((st.progress || 0) * 100) + '%'
+    bar.append(fill)
+    card.append(bar)
+  }
+  return card
+}
+
+function showPending () {
+  $('pending').hidden = !pending
+  if (!pending) return
+  $('pendingName').textContent = pending.name
+  $('pendingSize').textContent = fmtSize(pending.size)
+  for (const b of $('pending').querySelectorAll('[data-ttl]')) b.classList.toggle('on', Number(b.dataset.ttl) === pending.ttl)
+}
+
+function choose (info) {
+  if (!info || !current) return
+  const r = roomById(current)
+  if (!r || r.removed) return
+  pending = { ...info, ttl: 24 * 3600 * 1000 }
+  showPending()
+}
+
+$('attachBtn').onclick = async () => { try { choose(await s.pickFile()) } catch (e) { toast(e.message) } }
+for (const b of $('pending').querySelectorAll('[data-ttl]')) {
+  b.onclick = () => { pending.ttl = Number(b.dataset.ttl); showPending() }
+}
+$('pendingCancel').onclick = () => { pending = null; showPending() }
+$('pendingSend').onclick = async () => {
+  if (!pending || !current) return
+  const p = pending
+  pending = null
+  showPending()
+  try { await s.sendFile(current, p.path, p.ttl) } catch (e) { toast(e.message) }
+}
+
+// Drag a file anywhere onto the room to send it.
+let dragDepth = 0
+const roomViewEl = document.querySelector('.room-view')
+roomViewEl.addEventListener('dragenter', (e) => { if ([...e.dataTransfer.types].includes('Files')) { dragDepth++; $('dropZone').hidden = false } })
+roomViewEl.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('dropZone').hidden = true } })
+roomViewEl.addEventListener('dragover', (e) => e.preventDefault())
+roomViewEl.addEventListener('drop', async (e) => {
+  e.preventDefault()
+  dragDepth = 0
+  $('dropZone').hidden = true
+  const file = e.dataTransfer.files[0]
+  if (!file) return
+  try { choose(await s.fileInfo(s.pathFor(file))) } catch (err) { toast(err.message) }
+})
+// Never let a dropped file navigate the window away.
+window.addEventListener('dragover', (e) => e.preventDefault())
+window.addEventListener('drop', (e) => e.preventDefault())
+
+// Keep countdowns honest without anyone touching anything.
+setInterval(() => {
+  if (current && !searching && (records[current] || []).some((r) => r.kind === 'file' && !isGone(r))) renderMessages()
+}, 30 * 1000)
+
+// ---------- Search (⌘F / Ctrl+F) ----------
+function openSearch () {
+  if (!current && rooms.length) openRoom(rooms[0].id)
+  searching = true
+  $('searchBar').hidden = false
+  $('searchInput').focus()
+  $('searchInput').select()
+  renderResults()
+}
+
+function closeSearch () {
+  searching = false
+  $('searchBar').hidden = true
+  $('results').hidden = true
+  $('messages').hidden = false
+}
+
+function highlight (node, text, q) {
+  const lower = text.toLowerCase()
+  let i = 0
+  let j
+  while (q && (j = lower.indexOf(q, i)) >= 0) {
+    if (j > i) node.append(document.createTextNode(text.slice(i, j)))
+    node.append(el('mark', null, text.slice(j, j + q.length)))
+    i = j + q.length
+  }
+  if (i < text.length) node.append(document.createTextNode(text.slice(i)))
+}
+
+function renderResults () {
+  const q = $('searchInput').value.trim().toLowerCase()
+  const box = $('results')
+  $('messages').hidden = !!q
+  box.hidden = !q
+  box.textContent = ''
+  if (!q) return
+  const hits = []
+  for (const [roomId, list] of Object.entries(records)) {
+    const r = roomById(roomId)
+    if (!r) continue
+    for (const m of list) {
+      const text = m.kind === 'msg' ? m.text : m.kind === 'file' ? m.fname : null
+      if (text && (text.toLowerCase().includes(q) || m.name.toLowerCase().includes(q))) hits.push({ r, m, text })
+    }
+  }
+  hits.sort((a, b) => b.m.ts - a.m.ts)
+  if (!hits.length) { box.append(el('p', 'empty', 'Nothing matches that yet.')); return }
+  for (const { r, m, text } of hits.slice(0, 200)) {
+    const row = el('div', 'result')
+    const where = m.kind === 'file'
+      ? `#${r.title} · ${m.name} sent a file · ${fmtDate(m.ts)}${isGone(m) ? ' · disappeared' : ''}`
+      : `#${r.title} · ${m.name} · ${fmtDate(m.ts)}`
+    row.append(el('div', 'result-where', where))
+    const t = el('div', 'result-text')
+    highlight(t, (m.kind === 'file' ? '📄 ' : '') + text, q)
+    row.append(t)
+    row.onclick = () => {
+      closeSearch()
+      openRoom(r.id)
+      const target = document.querySelector(`[data-msg="${m.id}"]`)
+      if (target) { target.scrollIntoView({ block: 'center' }); target.classList.add('flash') }
+    }
+    box.append(row)
+  }
+}
+
+$('searchInput').addEventListener('input', renderResults)
+$('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSearch() })
+$('searchClose').onclick = closeSearch
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !$('chat').hidden) { e.preventDefault(); openSearch() }
+  if (e.key === 'Escape' && searching) closeSearch()
+})
 
 function renderAll () {
   renderSidebar()
@@ -315,9 +504,20 @@ document.addEventListener('contextmenu', async (e) => {
     const msgEl = t.closest('[data-msg]')
     const personEl = t.closest('[data-person]')
     const r = roomById(current)
+    let fileRec = null
     if (msgEl && !selected) {
       const m = (records[current] || []).find((x) => x.id === msgEl.dataset.msg)
-      if (m) items.push({ id: 'copyMsg', label: 'Copy message' })
+      if (m && m.kind === 'msg') items.push({ id: 'copyMsg', label: 'Copy message' })
+      if (m && m.kind === 'file') {
+        fileRec = m
+        const st = m.status || {}
+        if (isGone(m)) {
+          if (m.author === me.publicKey) items.push({ id: 'sendAgain', label: 'Send it again…' })
+          else if (r && !r.removed) items.push({ id: 'askResend', label: `Ask ${m.name} to resend` })
+        } else if (st.state === 'ready') items.push({ id: 'saveFile', label: 'Save…' })
+        else if (st.state === 'available') items.push({ id: 'download', label: 'Download' })
+        items.push({ id: 'copyName', label: 'Copy file name' })
+      }
     }
     let target = null
     if (personEl && r && r.mine && !r.removed) {
@@ -337,6 +537,13 @@ document.addEventListener('contextmenu', async (e) => {
       toast('Copied')
     }
     if (choice === 'remove' && target) await removePerson(r, target.key, target.name)
+    if (fileRec) {
+      if (choice === 'saveFile' && await s.saveFile(fileRec.fid, fileRec.fname)) toast('Saved')
+      if (choice === 'download') await s.download(fileRec.room, fileRec.fid)
+      if (choice === 'copyName') { await s.copyText(fileRec.fname); toast('Copied') }
+      if (choice === 'askResend') await s.post(fileRec.room, `@${fileRec.name} can you resend ${fileRec.fname}?`)
+      if (choice === 'sendAgain') choose(await s.pickFile())
+    }
   } catch (err) { toast(err.message) }
 })
 
@@ -383,7 +590,7 @@ s.onRecord((r) => {
   if (records[r.room].some((x) => x.id === r.id)) return
   records[r.room].push(r)
   records[r.room].sort((a, b) => a.ts - b.ts)
-  if (r.room !== current && r.kind === 'msg') unread.add(r.room)
+  if (r.room !== current && (r.kind === 'msg' || r.kind === 'file')) unread.add(r.room)
   renderSidebar()
   if (r.room === current) renderMessages()
 })
@@ -394,6 +601,10 @@ s.onRooms((list) => {
   renderHeader()
 })
 s.onTheme(({ themes, theme, css }) => { renderThemes(themes, theme); applyTheme(css) })
+s.onFileStatus(({ room, fid, status }) => {
+  for (const r of records[room] || []) if (r.kind === 'file' && r.fid === fid) r.status = status
+  if (room === current && !searching) renderMessages()
+})
 
 async function refresh () {
   const st = await s.state()

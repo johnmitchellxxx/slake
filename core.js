@@ -21,7 +21,13 @@ const { EventEmitter } = require('events')
 const MAX_TEXT = 4000
 const MAX_LINE = 8 * 1024 * 1024
 const MAX_MEMBERS = 256
-const KINDS = new Set(['room', 'join', 'msg', 'rekey'])
+const KINDS = new Set(['room', 'join', 'msg', 'rekey', 'file'])
+
+// Files are fleeting: they always vanish after one of these.
+const HOUR = 3600 * 1000
+const TTLS = new Set([HOUR, 24 * HOUR, 7 * 24 * HOUR])
+const AUTO_FETCH = 50 * 1024 * 1024       // files up to this size download by themselves
+const CHUNK = 192 * 1024
 const hexRe = (n) => new RegExp('^[0-9a-f]{' + n + '}$')
 const KEY_RE = hexRe(64)
 const ID_RE = hexRe(32)
@@ -45,6 +51,12 @@ function validBody (kind, b) {
   if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40
   if (kind === 'join') return Object.keys(b).length === 0
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
+  if (kind === 'file') {
+    return typeof b.fid === 'string' && KEY_RE.test(b.fid) &&
+      typeof b.fname === 'string' && b.fname.length >= 1 && b.fname.length <= 200 && !/[\\/\0]/.test(b.fname) &&
+      Number.isSafeInteger(b.size) && b.size >= 0 &&
+      Number.isSafeInteger(b.ttl) && TTLS.has(b.ttl)
+  }
   if (kind === 'rekey') {
     return isInt(b.to) &&
       Array.isArray(b.members) && b.members.length <= MAX_MEMBERS && b.members.every((k) => KEY_RE.test(k)) &&
@@ -131,8 +143,13 @@ class Slake extends EventEmitter {
     this.keyIndex = new Map()    // label -> { roomId, epoch, key }
     this.topics = new Map()      // topic hex -> roomId
     this.peers = new Set()
+    this.filesDir = path.join(dataDir, 'files')
+    this.transfers = new Map()   // fid -> { room, rec, bytes, peer, tried, timer }
+    this.wanted = new Set()      // big files someone clicked Download on
+    this.now = () => Date.now()  // tests can fast-forward the clock
     this.swarm = null
     fs.mkdirSync(this.roomsDir, { recursive: true })
+    fs.mkdirSync(this.filesDir, { recursive: true })
   }
 
   _file (...p) { return path.join(this.dataDir, ...p) }
@@ -162,9 +179,16 @@ class Slake extends EventEmitter {
     this.swarm = this.makeSwarm()
     this.swarm.on('connection', (conn) => this._onConnection(conn))
     await Promise.all([...this.rooms.values()].map((room) => this._joinTopics(room)))
+    this.purgeExpired()
+    this._purgeTimer = setInterval(() => this.purgeExpired(), 30 * 1000)
+    if (this._purgeTimer.unref) this._purgeTimer.unref()
   }
 
-  async stop () { if (this.swarm) await this.swarm.destroy() }
+  async stop () {
+    clearInterval(this._purgeTimer)
+    for (const t of this.transfers.values()) clearTimeout(t.timer)
+    if (this.swarm) await this.swarm.destroy()
+  }
 
   get me () { return { publicKey: this.identity.publicKey, name: this.identity.name } }
 
@@ -261,13 +285,13 @@ class Slake extends EventEmitter {
     const e = room.epoch
     const names = new Map()
     for (const r of [...room.records.values()].sort((a, b) => a.ts - b.ts)) {
-      if (r.kind === 'join' || r.kind === 'msg' || r.kind === 'room') names.set(r.author, r.name)
+      if (r.kind === 'join' || r.kind === 'msg' || r.kind === 'file' || r.kind === 'room') names.set(r.author, r.name)
     }
     const set = new Set([room.owner])
     const rk = this._rekeyTo(room, e)
     if (rk) for (const k of rk.body.members) set.add(k)
     for (const r of room.records.values()) {
-      if ((r.kind === 'join' || r.kind === 'msg') && r.epoch === e) set.add(r.author)
+      if ((r.kind === 'join' || r.kind === 'msg' || r.kind === 'file') && r.epoch === e) set.add(r.author)
     }
     return [...set].map((key) => ({
       key,
@@ -419,6 +443,7 @@ class Slake extends EventEmitter {
     }
     if (rec.kind === 'rekey') this._onRekey(room, rec)
     this.emit('record', room.id, rec)
+    if (rec.kind === 'file' && rec.author !== this.identity.publicKey && rec.body.size <= AUTO_FETCH) this._fetch(room, rec)
     return true
   }
 
@@ -465,26 +490,35 @@ class Slake extends EventEmitter {
   _announce () { for (const p of this.peers) this._hello(p) }
 
   _onConnection (conn) {
-    const peer = { conn, buf: '', proven: new Map() }
+    const peer = { conn, buf: Buffer.alloc(0), proven: new Map(), streams: new Set() }
     this.peers.add(peer)
     conn.on('error', () => {})
-    conn.on('close', () => { this.peers.delete(peer); clearTimeout(peer.timer); this.emit('rooms') })
+    conn.on('close', () => {
+      this.peers.delete(peer)
+      clearTimeout(peer.timer)
+      for (const st of peer.streams) st.destroy()
+      // Anything we were downloading from them: try someone else.
+      for (const t of this.transfers.values()) if (t.peer === peer) this._nextSource(t)
+      this.emit('rooms')
+    })
     conn.on('data', (d) => {
-      peer.buf += d.toString('utf8')
-      if (peer.buf.length > MAX_LINE) return conn.destroy()
+      peer.buf = peer.buf.length ? Buffer.concat([peer.buf, d]) : d
       let i
-      while ((i = peer.buf.indexOf('\n')) >= 0) {
-        const line = peer.buf.slice(0, i)
-        peer.buf = peer.buf.slice(i + 1)
+      while ((i = peer.buf.indexOf(10)) >= 0) {
+        const line = peer.buf.subarray(0, i).toString('utf8')
+        peer.buf = peer.buf.subarray(i + 1)
         try { this._onMessage(peer, JSON.parse(line)) } catch { return conn.destroy() }
       }
+      if (peer.buf.length > MAX_LINE) return conn.destroy()
     })
     this._hello(peer)
     // Strangers who can't prove they share any room get dropped.
     peer.timer = setTimeout(() => { if (peer.proven.size === 0) { this.emit('rejected'); conn.destroy() } }, 15000)
   }
 
-  _send (peer, obj) { try { peer.conn.write(JSON.stringify(obj) + '\n') } catch {} }
+  _send (peer, obj) {
+    try { return peer.conn.write(JSON.stringify(obj) + '\n') } catch { return true }
+  }
 
   _sendable (room, peerEpoch) {
     return [...room.records.values()].filter((r) => r.kind === 'rekey' || r.epoch <= peerEpoch)
@@ -511,6 +545,7 @@ class Slake extends EventEmitter {
           if (room) this._send(peer, { type: 'have', room: roomId, ids: [...room.records.keys()] })
         }
         this.emit('rooms')
+        for (const roomId of changed) this._retryFiles(roomId)
       }
       return
     }
@@ -528,6 +563,221 @@ class Slake extends EventEmitter {
       const sorted = msg.recs.slice().sort((a, b) => (a && b ? a.ts - b.ts : 0))
       for (const r of sorted) if (this._accept(room, r, peerEpoch)) fresh.push(room.records.get(r.id))
       if (fresh.length) this._broadcast(room, fresh, peer)
+    } else if (msg.type === 'want') {
+      this._serve(peer, room, peerEpoch, msg)
+    } else if (msg.type === 'chunk' || msg.type === 'nofile') {
+      this._onChunk(peer, room, msg)
+    }
+  }
+
+  // ---------- Fleeting files ----------
+  // A file record is a signed note in the room ("John sent plot.pdf, lasts
+  // 1 day"). The bytes travel directly between computers, are checked
+  // against the note's fingerprint, and every copy is deleted when time's up.
+
+  _fileRec (room, fid) {
+    for (const r of room.records.values()) if (r.kind === 'file' && r.body.fid === fid) return r
+    return null
+  }
+
+  _filePath (fid) { return path.join(this.filesDir, fid) }
+  _expired (rec) { return this.now() >= rec.ts + rec.body.ttl }
+
+  fileStatus (rec) {
+    if (this._expired(rec)) return { state: 'expired', expiresAt: rec.ts + rec.body.ttl }
+    if (fs.existsSync(this._filePath(rec.body.fid))) return { state: 'ready', expiresAt: rec.ts + rec.body.ttl }
+    const t = this.transfers.get(rec.body.fid)
+    if (t && t.peer) return { state: 'downloading', progress: rec.body.size ? t.bytes / rec.body.size : 1, expiresAt: rec.ts + rec.body.ttl }
+    const auto = rec.body.size <= AUTO_FETCH || this.wanted.has(rec.body.fid)
+    return { state: auto || t ? 'waiting' : 'available', expiresAt: rec.ts + rec.body.ttl }
+  }
+
+  async sendFile (roomId, filePath, ttl = 24 * HOUR) {
+    this._needName()
+    const room = this._room(roomId)
+    if (room.removed) throw new Error("You're no longer in this room")
+    if (!TTLS.has(ttl)) throw new Error('Files last 1 hour, 1 day or 1 week')
+    const st = await fs.promises.stat(filePath)
+    if (!st.isFile()) throw new Error("That's not a file")
+    // Fingerprint the file while copying it into Slake's short-term shelf.
+    const hash = nodeCrypto.createHash('sha256')
+    const tmp = path.join(this.filesDir, 'incoming-' + hc.randomBytes(8).toString('hex'))
+    await new Promise((resolve, reject) => {
+      const rs = fs.createReadStream(filePath)
+      const ws = fs.createWriteStream(tmp)
+      rs.on('data', (d) => hash.update(d))
+      rs.on('error', reject)
+      ws.on('error', reject)
+      ws.on('finish', resolve)
+      rs.pipe(ws)
+    })
+    const fid = hash.digest('hex')
+    fs.renameSync(tmp, this._filePath(fid))
+    const fname = path.basename(filePath).replace(/[\0]/g, '').slice(-200) || 'file'
+    const r = this._sign(room, 'file', room.epoch, { fid, fname, size: st.size, ttl })
+    this._publish(room, r)
+    this.emit('file', room.id, fid)
+    return r
+  }
+
+  // Ask for a big file that doesn't download by itself.
+  download (roomId, fid) {
+    const room = this._room(roomId)
+    const rec = this._fileRec(room, fid)
+    if (!rec) throw new Error('No such file')
+    if (this._expired(rec)) throw new Error('That file has disappeared')
+    this.wanted.add(fid)
+    this._fetch(room, rec)
+  }
+
+  async saveFile (fid, dest) {
+    if (!KEY_RE.test(fid) || !fs.existsSync(this._filePath(fid))) throw new Error("That file isn't here (anymore)")
+    await fs.promises.copyFile(this._filePath(fid), dest)
+  }
+
+  filePath (fid) {
+    return KEY_RE.test(fid) && fs.existsSync(this._filePath(fid)) ? this._filePath(fid) : null
+  }
+
+  _fetch (room, rec) {
+    const fid = rec.body.fid
+    if (this._expired(rec) || fs.existsSync(this._filePath(fid))) return
+    let t = this.transfers.get(fid)
+    if (!t) {
+      t = { room: room.id, rec, bytes: 0, peer: null, tried: new Set(), timer: null }
+      this.transfers.set(fid, t)
+    }
+    if (!t.peer) this._nextSource(t)
+  }
+
+  _retryFiles (roomId) {
+    for (const t of this.transfers.values()) {
+      if (t.room !== roomId || t.peer) continue
+      t.tried.clear()
+      this._nextSource(t)
+    }
+  }
+
+  // Pick the next person in the room to ask for the file.
+  _nextSource (t) {
+    if (t.checking) return
+    clearTimeout(t.timer)
+    t.peer = null
+    const room = this.rooms.get(t.room)
+    if (!room || this._expired(t.rec)) { this._dropTransfer(t.rec.body.fid); return }
+    const part = this._filePath(t.rec.body.fid) + '.part'
+    t.bytes = fs.existsSync(part) ? fs.statSync(part).size : 0
+    for (const p of this.peers) {
+      if (t.tried.has(p) || !p.proven.has(room.id) || p.proven.get(room.id) < t.rec.epoch) continue
+      t.tried.add(p)
+      t.peer = p
+      this._send(p, { type: 'want', room: room.id, fid: t.rec.body.fid, off: t.bytes })
+      this._stall(t)
+      break
+    }
+    this.emit('file', t.room, t.rec.body.fid)
+  }
+
+  _stall (t) {
+    clearTimeout(t.timer)
+    t.timer = setTimeout(() => this._nextSource(t), 20000)
+  }
+
+  _dropTransfer (fid) {
+    const t = this.transfers.get(fid)
+    if (t) clearTimeout(t.timer)
+    this.transfers.delete(fid)
+  }
+
+  _serve (peer, room, peerEpoch, msg) {
+    const fid = String(msg.fid || '')
+    const rec = KEY_RE.test(fid) && this._fileRec(room, fid)
+    const p = rec && this._filePath(fid)
+    const off = Number(msg.off) || 0
+    if (!rec || rec.epoch > peerEpoch || this._expired(rec) || !fs.existsSync(p) || off < 0 || off > rec.body.size) {
+      this._send(peer, { type: 'nofile', room: room.id, fid })
+      return
+    }
+    if (off === rec.body.size) { this._send(peer, { type: 'chunk', room: room.id, fid, off, d: '' }); return }
+    const rs = fs.createReadStream(p, { start: off, highWaterMark: CHUNK })
+    peer.streams.add(rs)
+    let pos = off
+    rs.on('data', (d) => {
+      const ok = this._send(peer, { type: 'chunk', room: room.id, fid, off: pos, d: d.toString('base64') })
+      pos += d.length
+      if (!ok) { rs.pause(); peer.conn.once('drain', () => rs.resume()) }
+    })
+    const done = () => peer.streams.delete(rs)
+    rs.on('end', done)
+    rs.on('error', () => { done(); this._send(peer, { type: 'nofile', room: room.id, fid }) })
+    rs.on('close', done)
+  }
+
+  _onChunk (peer, room, msg) {
+    const fid = String(msg.fid || '')
+    const t = this.transfers.get(fid)
+    if (!t || t.peer !== peer || t.room !== room.id) return
+    if (msg.type === 'nofile') { this._nextSource(t); return }
+    if (Number(msg.off) !== t.bytes || typeof msg.d !== 'string') return
+    const data = Buffer.from(msg.d, 'base64')
+    if (t.bytes + data.length > t.rec.body.size) { this._badFile(t); return }
+    const part = this._filePath(fid) + '.part'
+    if (data.length) fs.appendFileSync(part, data)
+    else if (!fs.existsSync(part)) fs.writeFileSync(part, '')
+    t.bytes += data.length
+    this._stall(t)
+    if (t.bytes < t.rec.body.size) {
+      const now = Date.now()
+      if (!t.lastEmit || now - t.lastEmit > 250) { t.lastEmit = now; this.emit('file', room.id, fid) }
+      return
+    }
+    // All there: make sure it's exactly the file that was announced.
+    // (Read in pieces, so a 40 GB file doesn't need 40 GB of memory.)
+    clearTimeout(t.timer)
+    t.checking = true
+    const hash = nodeCrypto.createHash('sha256')
+    fs.createReadStream(part)
+      .on('data', (d) => hash.update(d))
+      .on('error', () => this._badFile(t))
+      .on('end', () => {
+        t.checking = false
+        if (hash.digest('hex') !== fid) { this._badFile(t); return }
+        try { fs.renameSync(part, this._filePath(fid)) } catch { this._badFile(t); return }
+        this._dropTransfer(fid)
+        this.emit('file', room.id, fid)
+      })
+  }
+
+  _badFile (t) {
+    try { fs.unlinkSync(this._filePath(t.rec.body.fid) + '.part') } catch {}
+    t.bytes = 0
+    this._nextSource(t)
+  }
+
+  // Delete every file whose time is up. Called on start and every 30 seconds.
+  purgeExpired () {
+    const live = new Set()
+    const dead = new Set()
+    for (const room of this.rooms.values()) {
+      for (const r of room.records.values()) {
+        if (r.kind !== 'file') continue
+        if (this._expired(r)) {
+          dead.add(r.body.fid)
+          const had = fs.existsSync(this._filePath(r.body.fid)) || this.transfers.has(r.body.fid)
+          this._dropTransfer(r.body.fid)
+          if (had) this.emit('file', room.id, r.body.fid)
+        } else live.add(r.body.fid)
+      }
+    }
+    for (const f of fs.readdirSync(this.filesDir)) {
+      const fid = f.replace(/\.part$/, '')
+      if (live.has(fid)) continue
+      const full = path.join(this.filesDir, f)
+      try {
+        // Expired: gone now. Unknown leftovers (e.g. from a room you left):
+        // gone once they're a couple of minutes old, so a send in progress is safe.
+        if (dead.has(fid) || Date.now() - fs.statSync(full).mtimeMs > 120000) fs.unlinkSync(full)
+      } catch {}
     }
   }
 

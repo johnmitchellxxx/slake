@@ -46,6 +46,9 @@ function send (channel, data) {
 function present (room, r) {
   const out = { id: r.id, room: r.room, kind: r.kind, author: r.author, name: r.name, ts: r.ts }
   if (r.kind === 'msg') out.text = r.body.text
+  if (r.kind === 'file') {
+    Object.assign(out, { fid: r.body.fid, fname: r.body.fname, size: r.body.size, ttl: r.body.ttl, status: slake.fileStatus(r) })
+  }
   if (r.kind === 'room') out.title = r.body.title
   if (r.kind === 'rekey') {
     // Work out who was left out, by name, for the little gray notice.
@@ -91,12 +94,18 @@ app.whenReady().then(async () => {
   await slake.start()
 
   slake.on('rooms', () => send('rooms', rooms()))
+  slake.on('file', (roomId, fid) => {
+    const room = slake.rooms.get(roomId)
+    const rec = room && slake._fileRec(room, fid)
+    if (rec) send('fileStatus', { room: roomId, fid, status: slake.fileStatus(rec) })
+  })
   slake.on('record', (roomId, r) => {
     const room = slake.rooms.get(roomId)
     if (!room) return
     send('record', present(room, r))
-    if (r.kind === 'msg' && r.author !== slake.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
-      new Notification({ title: `${r.name} in ${room.title}`, body: r.body.text.slice(0, 200) }).show()
+    if ((r.kind === 'msg' || r.kind === 'file') && r.author !== slake.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
+      const body = r.kind === 'file' ? `📄 ${r.body.fname}` : r.body.text.slice(0, 200)
+      new Notification({ title: `${r.name} in ${room.title}`, body }).show()
     }
   })
 
@@ -119,6 +128,27 @@ app.whenReady().then(async () => {
   handle('leaveRoom', (room) => slake.leaveRoom(room))
   handle('openThemes', () => shell.openPath(themesDir()))
   handle('copyText', (t) => clipboard.writeText(String(t || '')))
+
+  // Files
+  handle('pickFile', async () => {
+    const r = await dialog.showOpenDialog(win, { properties: ['openFile'] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const st = fs.statSync(r.filePaths[0])
+    return { path: r.filePaths[0], name: path.basename(r.filePaths[0]), size: st.size }
+  })
+  handle('fileInfo', (p) => {
+    const st = fs.statSync(String(p))
+    if (!st.isFile()) throw new Error("That's a folder. Send files one at a time, or zip the folder first.")
+    return { path: String(p), name: path.basename(String(p)), size: st.size }
+  })
+  handle('sendFile', async ({ room, path: p, ttl }) => { await slake.sendFile(room, p, ttl) })
+  handle('download', ({ room, fid }) => slake.download(room, fid))
+  handle('saveFile', async ({ fid, fname }) => {
+    const r = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath('downloads'), path.basename(fname)) })
+    if (r.canceled || !r.filePath) return false
+    await slake.saveFile(fid, r.filePath)
+    return true
+  })
 
   // Right-click menus. The page describes the items; we show a real Mac/PC
   // menu and report back which one was picked (or null).
