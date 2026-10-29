@@ -41,8 +41,10 @@ language, keep the window clean and minimal, keep it hackable.
 Themes can restyle anything. Useful hooks:
 - `.msg[data-mine="true"]` your own messages; `data-kind` is `msg` or `file`
 - `html[data-platform="mac" | "win" | "other"]`
-- Put `slake: glass` anywhere in a theme (e.g. its top comment) to get a
-  see-through window on Mac (Electron vibrancy). Make backgrounds translucent.
+- `slake: glass` in a theme turns on Mac vibrancy at runtime. **Broken:** on a
+  real Mac it shows a plain grey window. Likely fix: create the window with
+  vibrancy + transparent background from the start and let opaque themes
+  cover it. Glass theme is retired until that's tested on a Mac.
 - Fonts: system fonts only (the page's security policy blocks web fonts).
 
 ## Releasing
