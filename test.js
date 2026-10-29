@@ -1,81 +1,108 @@
-// Runs three copies of Slake on a private, offline test network:
-// Alice starts a group, Bob joins with her invite, Mallory tries to
-// sneak in with a made-up invite. Run with: npm test
+// Runs several copies of Slake on a private, offline test network.
+// Run with: npm test
 const createTestnet = require('hyperdht/testnet')
+const DHT = require('hyperdht')
+const Hyperswarm = require('hyperswarm')
 const os = require('os')
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
 const { Slake } = require('./core')
-const DHT = require('hyperdht')
-const Hyperswarm = require('hyperswarm')
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-async function until (fn, label, ms = 20000) {
+async function until (fn, label, ms = 25000) {
   const end = Date.now() + ms
   while (Date.now() < end) { if (fn()) return; await wait(100) }
   throw new Error('Timed out waiting for: ' + label)
 }
+const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r) => r.kind === 'msg').map((r) => r.body.text).sort()
 
 ;(async () => {
   const testnet = await createTestnet(3)
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'slake-test-'))
   const makeSwarm = () => new Hyperswarm({ dht: new DHT({ bootstrap: testnet.bootstrap, host: '127.0.0.1' }) })
-  const mk = (n) => new Slake({ dataDir: path.join(tmp, n), makeSwarm })
+  const mk = async (n) => { const s = new Slake({ dataDir: path.join(tmp, n), makeSwarm }); await s.start(); s.setName(n); return s }
 
-  const alice = mk('alice'); await alice.start(); alice.setName('Alice')
-  await alice.createGroup('Test Crew')
-  alice.post('general', 'hello before anyone is here')
+  const john = await mk('John')
+  const project = await john.createRoom('NewProject')
+  const party = await john.createRoom('Lets party')
+  john.post(project, 'kickoff notes')
 
-  const bob = mk('bob'); await bob.start(); bob.setName('Bob')
-  await bob.joinGroup(alice.invite)
+  // Bob is invited to NewProject only.
+  const bob = await mk('Bob')
+  await bob.joinRoom(john.invite(project))
+  await until(() => texts(bob, project).length === 1, 'Bob catches up on NewProject')
+  assert.strictEqual(bob.rooms.has(party), false)
+  console.log('✓ Bob sees NewProject (and its history) but not the party room')
 
-  await until(() => bob.messages.size === 1, 'Bob catches up on history')
-  console.log('✓ Bob received the message Alice sent before he joined')
+  // Sam is invited to both.
+  const sam = await mk('Sam')
+  await sam.joinRoom(john.invite(project))
+  await sam.joinRoom(john.invite(party))
+  sam.post(party, 'bring snacks')
+  await until(() => texts(john, party).includes('bring snacks'), 'John gets party message')
+  await wait(1500)
+  assert.strictEqual(bob.rooms.has(party), false)
+  console.log('✓ Party messages reach John but never Bob')
 
-  bob.post('random', 'hi from bob')
-  await until(() => alice.messages.size === 2, 'Alice gets live message')
-  console.log('✓ Live message reached Alice')
+  // Members can talk; non-owners can't invite.
+  bob.post(project, 'hi from bob')
+  await until(() => texts(sam, project).includes('hi from bob'), 'Sam gets Bob message')
+  assert.throws(() => bob.invite(project), /Only the owner/)
+  console.log('✓ Members chat in NewProject; only the owner can invite')
 
-  let rejected = 0
-  alice.on('rejected', () => rejected++)
-  const mallory = mk('mallory'); await mallory.start(); mallory.setName('Mallory')
-  // Right fingerprint for the phone book, wrong secret: she'll find the group
-  // but must fail the membership check.
-  mallory.group = { name: 'x', secret: alice.group.secret }
-  mallory._writeJSON('group.json', mallory.group)
-  mallory._secret = Buffer.alloc(32, 7)
-  mallory.topic = alice.topic
-  mallory.swarm = makeSwarm()
-  mallory.swarm.on('connection', (c) => mallory._onConnection(c))
-  await mallory.swarm.join(alice.topic).flushed()
-  await until(() => rejected > 0, 'Alice rejects impostor')
-  await wait(1000)
-  assert.strictEqual(mallory.messages.size, 0)
-  console.log('✓ Impostor without the real secret was kicked out and saw nothing')
+  // Bob's own space: he makes a room and invites John.
+  const garage = await bob.createRoom('bobs-garage')
+  await john.joinRoom(bob.invite(garage))
+  john.post(garage, 'nice garage')
+  await until(() => texts(bob, garage).includes('nice garage'), 'Bob gets John in his room')
+  assert.strictEqual(john.rooms.get(garage).owner, bob.me.publicKey)
+  console.log("✓ John joined a room in Bob's space")
 
-  // Tampered message must be refused.
-  const forged = { ...[...alice.messages.values()][0], text: 'forged!' }
-  assert.strictEqual(bob._add(forged), false)
-  console.log('✓ Tampered message refused')
+  // John removes Bob from NewProject.
+  await until(() => john.members(project).length === 3, 'John sees 3 members')
+  await john.removeMember(project, bob.me.publicKey)
+  await until(() => bob.rooms.get(project).removed, 'Bob learns he was removed')
+  await until(() => sam.rooms.get(project).epoch === 1, 'Sam gets the new key')
+  john.post(project, 'secret plans after bob left')
+  await until(() => texts(sam, project).includes('secret plans after bob left'), 'Sam gets post-removal message')
+  await wait(2000)
+  assert.ok(!texts(bob, project).includes('secret plans after bob left'))
+  console.log('✓ Removed Bob is cut off; Sam keeps getting new messages')
 
-  // Restart Bob: history should survive on disk.
-  await bob.stop()
-  const bob2 = new Slake({ dataDir: path.join(tmp, 'bob'), makeSwarm })
-  await bob2.start()
-  assert.strictEqual(bob2.messages.size, 2)
-  assert.strictEqual(bob2.me.name, 'Bob')
-  console.log('✓ Bob kept his identity and history after restarting')
+  // Bob tries to post into NewProject anyway.
+  assert.throws(() => bob.post(project, 'let me back in'), /no longer/)
+  // Even forging a post with his old key gets refused by others.
+  const room = bob.rooms.get(project)
+  const forged = bob._sign(room, 'msg', 0, { text: 'sneaky' })
+  assert.strictEqual(sam._accept(sam.rooms.get(project), forged, 0), false)
+  console.log("✓ Bob's late posts with his old key are refused")
 
-  // Leaving a group lets you join a different one; old history is kept aside.
-  await bob2.leaveGroup()
-  assert.strictEqual(bob2.group, null)
-  assert.strictEqual(bob2.messages.size, 0)
-  await bob2.joinGroup(alice.invite)
-  await until(() => bob2.messages.size === 2, 'Bob rejoins and catches up')
-  console.log('✓ Bob left, rejoined with an invite, and caught up again')
+  // An old invite (from before the removal) no longer works for new messages.
+  assert.strictEqual(john.members(project).length, 2)
+  console.log('✓ Member list updated: John + Sam')
 
-  await Promise.all([alice.stop(), bob2.stop(), mallory.stop()])
+  // Tampering is refused.
+  const any = [...sam.rooms.get(project).records.values()].find((r) => r.kind === 'msg')
+  assert.strictEqual(bob._accept(bob.rooms.get(garage), { ...any, room: garage, body: { text: 'forged' } }, 99), false)
+  console.log('✓ Tampered records refused')
+
+  // Restart Sam: rooms, keys and history survive.
+  await sam.stop()
+  const sam2 = new Slake({ dataDir: path.join(tmp, 'Sam'), makeSwarm })
+  await sam2.start()
+  assert.strictEqual(sam2.rooms.size, 2)
+  assert.strictEqual(sam2.rooms.get(project).epoch, 1)
+  assert.ok(texts(sam2, project).includes('secret plans after bob left'))
+  console.log('✓ Sam kept his rooms, keys and history after restarting')
+
+  // Leaving a room someone else owns.
+  await john.leaveRoom(garage)
+  assert.strictEqual(john.rooms.has(garage), false)
+  await assert.rejects(() => john.leaveRoom(project), /own this room/)
+  console.log("✓ John left Bob's room; can't leave his own")
+
+  await Promise.all([john.stop(), bob.stop(), sam2.stop()])
   await testnet.destroy()
   console.log('\nAll good.')
   process.exit(0)

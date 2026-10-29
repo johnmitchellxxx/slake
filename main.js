@@ -1,5 +1,5 @@
-// The desktop app wrapper: opens the window and hands messages
-// back and forth between the engine (core.js) and the screen.
+// The desktop app wrapper: opens the window and hands things back and forth
+// between the engine (core.js) and the screen.
 const { app, BrowserWindow, ipcMain, Notification, shell, clipboard } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -35,25 +35,54 @@ function listThemes () {
 
 function themeCSS (name) {
   if (!name || name === 'default') return ''
-  const file = path.join(themesDir(), path.basename(name) + '.css')
-  try { return fs.readFileSync(file, 'utf8') } catch { return '' }
+  try { return fs.readFileSync(path.join(themesDir(), path.basename(name) + '.css'), 'utf8') } catch { return '' }
 }
 
 function send (channel, data) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, data)
 }
 
-function state () {
-  return {
-    me: slake.me,
-    group: slake.group ? { name: slake.group.name } : null,
-    invite: slake.invite,
-    messages: [...slake.messages.values()].sort((a, b) => a.ts - b.ts),
-    peers: slake.peerCount,
-    themes: listThemes(),
-    theme: readSettings().theme,
-    themeCSS: themeCSS(readSettings().theme)
+// What the screen needs to know about one record.
+function present (room, r) {
+  const out = { id: r.id, room: r.room, kind: r.kind, author: r.author, name: r.name, ts: r.ts }
+  if (r.kind === 'msg') out.text = r.body.text
+  if (r.kind === 'room') out.title = r.body.title
+  if (r.kind === 'rekey') {
+    // Work out who was left out, by name, for the little gray notice.
+    const before = new Set()
+    for (const x of room.records.values()) {
+      if ((x.kind === 'join' || x.kind === 'msg') && x.epoch === r.epoch && x.author !== room.owner) before.add(x.author)
+      if (x.kind === 'rekey' && x.body.to === r.epoch) x.body.members.forEach((k) => before.add(k))
+    }
+    const names = new Map([...room.records.values()].filter((x) => x.kind !== 'rekey').map((x) => [x.author, x.name]))
+    out.removedNames = [...before].filter((k) => k !== room.owner && !r.body.members.includes(k)).map((k) => names.get(k) || 'someone')
   }
+  return out
+}
+
+function roomInfo (room) {
+  const mine = room.owner === slake.me.publicKey
+  return {
+    id: room.id,
+    title: room.title,
+    owner: room.owner,
+    ownerName: room.ownerName,
+    mine,
+    removed: room.removed,
+    online: slake.online(room.id),
+    members: mine ? slake.members(room.id) : null
+  }
+}
+
+function rooms () { return [...slake.rooms.values()].map(roomInfo) }
+
+function state () {
+  const records = {}
+  for (const room of slake.rooms.values()) {
+    records[room.id] = [...room.records.values()].sort((a, b) => a.ts - b.ts).map((r) => present(room, r))
+  }
+  const s = readSettings()
+  return { me: slake.me, rooms: rooms(), records, themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme) }
 }
 
 app.whenReady().then(async () => {
@@ -61,11 +90,13 @@ app.whenReady().then(async () => {
   slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data') })
   await slake.start()
 
-  slake.on('peers', (n) => send('peers', n))
-  slake.on('message', (m) => {
-    send('message', m)
-    if (m.author !== slake.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
-      new Notification({ title: `${m.name} in #${m.channel}`, body: m.text.slice(0, 200) }).show()
+  slake.on('rooms', () => send('rooms', rooms()))
+  slake.on('record', (roomId, r) => {
+    const room = slake.rooms.get(roomId)
+    if (!room) return
+    send('record', present(room, r))
+    if (r.kind === 'msg' && r.author !== slake.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
+      new Notification({ title: `${r.name} in ${room.title}`, body: r.body.text.slice(0, 200) }).show()
     }
   })
 
@@ -80,11 +111,12 @@ app.whenReady().then(async () => {
   })
   handle('state', () => state())
   handle('setName', (n) => slake.setName(n))
-  handle('createGroup', (n) => slake.createGroup(n))
-  handle('joinGroup', (inv) => slake.joinGroup(inv))
-  handle('post', ({ channel, text }) => slake.post(channel, text))
-  handle('leaveGroup', () => slake.leaveGroup())
-  handle('copyInvite', () => clipboard.writeText(slake.invite || ''))
+  handle('createRoom', (title) => slake.createRoom(title, { waitForNetwork: false }))
+  handle('joinRoom', (inv) => slake.joinRoom(inv, { waitForNetwork: false }))
+  handle('post', ({ room, text }) => { slake.post(room, text) })
+  handle('copyInvite', (room) => clipboard.writeText(slake.invite(room)))
+  handle('removeMember', ({ room, key }) => slake.removeMember(room, key))
+  handle('leaveRoom', (room) => slake.leaveRoom(room))
   handle('openThemes', () => shell.openPath(themesDir()))
   handle('setTheme', (t) => {
     writeSettings({ ...readSettings(), theme: t })
@@ -92,10 +124,10 @@ app.whenReady().then(async () => {
   })
 
   win = new BrowserWindow({
-    width: 1000,
-    height: 680,
-    minWidth: 640,
-    minHeight: 420,
+    width: 1040,
+    height: 700,
+    minWidth: 680,
+    minHeight: 440,
     title: profile ? `Slake (${profile})` : 'Slake',
     backgroundColor: '#16161d',
     webPreferences: {

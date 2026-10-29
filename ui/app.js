@@ -1,11 +1,13 @@
 // What you see on screen. Talks to the engine only through window.slake.
 const $ = (id) => document.getElementById(id)
-const g = window.slake
+const s = window.slake
 
-let state
-let current = 'general'
+let me = null
+let rooms = []          // [{ id, title, owner, ownerName, mine, removed, online, members }]
+let records = {}        // room id -> [record]
+let current = null      // open room id
+let membersOpen = false
 const unread = new Set()
-const extraChannels = new Set(['general'])
 
 // Each person gets a stable color + emoji pair made from their key,
 // so a fake "Duke" won't match the real one.
@@ -13,10 +15,14 @@ const EMOJI = ['🦊', '🐙', '🦉', '🐝', '🦀', '🐸', '🦋', '🐢', '
   '🪐', '🦄', '🐳', '🦔', '🌻', '🍉', '🎧', '🚀', '🧲', '🪩', '🦩', '🐌', '🌶', '🧿', '🎈', '🗝']
 function badge (hex) {
   const b = (i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16)
-  return {
-    emoji: EMOJI[b(0) % 32] + EMOJI[b(1) % 32],
-    color: `hsl(${(b(2) * 256 + b(3)) % 360} 55% 42%)`
-  }
+  return { emoji: EMOJI[b(0) % 32] + EMOJI[b(1) % 32], color: `hsl(${(b(2) * 256 + b(3)) % 360} 55% 42%)` }
+}
+
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag)
+  if (cls) e.className = cls
+  if (text != null) e.textContent = text
+  return e
 }
 
 function toast (text) {
@@ -24,180 +30,252 @@ function toast (text) {
   t.textContent = text
   t.hidden = false
   clearTimeout(toast.timer)
-  toast.timer = setTimeout(() => { t.hidden = true }, 1800)
+  toast.timer = setTimeout(() => { t.hidden = true }, 2200)
 }
 
-function applyTheme (css) { $('theme').textContent = css || '' }
-
-// ---------- Welcome flow ----------
-function showWelcome () {
-  $('welcome').hidden = false
-  $('chat').hidden = true
-  const named = !!state.me.name
-  $('nameForm').hidden = named
-  $('groupStep').hidden = !named
-  ;(named ? $('groupName') : $('nameInput')).focus()
-}
-
-async function guarded (fn) {
-  $('welcomeError').textContent = ''
-  try { await fn() } catch (e) { $('welcomeError').textContent = e.message }
-}
-
-$('nameForm').onsubmit = (e) => {
-  e.preventDefault()
-  guarded(async () => { await g.setName($('nameInput').value); await refresh() })
-}
-$('createForm').onsubmit = (e) => {
-  e.preventDefault()
-  guarded(async () => { await g.createGroup($('groupName').value); await refresh() })
-}
-$('joinForm').onsubmit = (e) => {
-  e.preventDefault()
-  guarded(async () => { await g.joinGroup($('inviteInput').value); await refresh() })
-}
-
-// ---------- Chat ----------
-function channelList () {
-  const set = new Set(extraChannels)
-  for (const m of state.messages) set.add(m.channel)
-  return [...set].sort((a, b) => (a === 'general' ? -1 : b === 'general' ? 1 : a.localeCompare(b)))
-}
-
-function renderChannels () {
-  const ul = $('channels')
-  ul.textContent = ''
-  for (const c of channelList()) {
-    const li = document.createElement('li')
-    li.textContent = '# ' + c
-    if (c === current) li.className = 'active'
-    else if (unread.has(c)) {
-      li.className = 'unread'
-      const dot = document.createElement('span')
-      dot.className = 'dot'
-      li.append(dot)
+// A button that needs two clicks, so nothing drastic happens by accident.
+function twoClick (btn, confirmText, action) {
+  const original = btn.textContent
+  btn.onclick = async () => {
+    if (!btn.classList.contains('confirm')) {
+      btn.classList.add('confirm')
+      btn.textContent = confirmText
+      clearTimeout(btn.timer)
+      btn.timer = setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = original }, 4000)
+      return
     }
-    li.onclick = () => openChannel(c)
-    ul.append(li)
+    clearTimeout(btn.timer)
+    btn.classList.remove('confirm')
+    btn.textContent = original
+    try { await action() } catch (e) { toast(e.message) }
   }
 }
 
-function openChannel (c) {
-  current = c
-  unread.delete(c)
-  $('roomName').textContent = c
-  renderChannels()
-  renderMessages()
-  $('text').focus()
+function applyTheme (css) { $('theme').textContent = css || '' }
+const roomById = (id) => rooms.find((r) => r.id === id)
+
+// ---------- Welcome ----------
+$('nameForm').onsubmit = async (e) => {
+  e.preventDefault()
+  $('welcomeError').textContent = ''
+  try { await s.setName($('nameInput').value); await refresh() } catch (err) { $('welcomeError').textContent = err.message }
+}
+
+// ---------- Sidebar ----------
+function roomItem (r) {
+  const li = el('li')
+  li.append(el('span', null, '# ' + r.title))
+  if (r.id === current) li.classList.add('active')
+  else if (unread.has(r.id)) { li.classList.add('unread'); li.append(el('span', 'dot')) }
+  if (r.removed) li.classList.add('gone')
+  else if (r.online > 0 && r.id !== current && !unread.has(r.id)) li.append(el('span', 'live'))
+  li.title = r.removed ? 'You were removed from this room' : r.online ? `${r.online} online` : 'Nobody else online'
+  li.onclick = () => openRoom(r.id)
+  return li
+}
+
+function renderSidebar () {
+  const b = badge(me.publicKey)
+  $('meLine').textContent = ''
+  $('meLine').append(document.createTextNode(b.emoji + ' '), el('b', null, me.name))
+
+  const nav = $('spaces')
+  nav.textContent = ''
+  const byTitle = (a, b) => a.title.localeCompare(b.title)
+
+  // Your space first, always.
+  const mine = el('div', 'space')
+  mine.append(el('div', 'space-name', 'Your space'))
+  const ul = el('ul')
+  rooms.filter((r) => r.mine).sort(byTitle).forEach((r) => ul.append(roomItem(r)))
+  mine.append(ul)
+  const form = el('form', 'new-room')
+  const input = el('input')
+  input.placeholder = '+ new room'
+  input.maxLength = 40
+  input.autocomplete = 'off'
+  form.append(input)
+  form.onsubmit = async (e) => {
+    e.preventDefault()
+    const title = input.value.trim()
+    if (!title) return
+    try {
+      const id = await s.createRoom(title)
+      input.value = ''
+      await refresh()
+      openRoom(id)
+    } catch (err) { toast(err.message) }
+  }
+  mine.append(form)
+  nav.append(mine)
+
+  // Then everyone else's spaces you've been invited into.
+  const owners = new Map()
+  for (const r of rooms.filter((x) => !x.mine)) {
+    if (!owners.has(r.owner)) owners.set(r.owner, { name: r.ownerName, rooms: [] })
+    owners.get(r.owner).rooms.push(r)
+  }
+  for (const [key, o] of [...owners].sort((a, b) => a[1].name.localeCompare(b[1].name))) {
+    const sp = el('div', 'space')
+    const head = el('div', 'space-name')
+    head.append(document.createTextNode(`${o.name}'s space `), el('span', 'badge', badge(key).emoji))
+    head.title = `Rooms ${o.name} has invited you to`
+    sp.append(head)
+    const list = el('ul')
+    o.rooms.sort(byTitle).forEach((r) => list.append(roomItem(r)))
+    sp.append(list)
+    nav.append(sp)
+  }
+}
+
+$('joinForm').onsubmit = async (e) => {
+  e.preventDefault()
+  const v = $('joinInput').value.trim()
+  if (!v) return
+  try {
+    const id = await s.joinRoom(v)
+    $('joinInput').value = ''
+    await refresh()
+    openRoom(id)
+    toast('Joined. History arrives as soon as someone in the room is online.')
+  } catch (err) { toast(err.message) }
+}
+
+// ---------- Room ----------
+function openRoom (id) {
+  current = id
+  unread.delete(id)
+  if (!roomById(id)) current = null
+  renderAll()
+  if (current) $('text').focus()
+}
+
+function renderHeader () {
+  const r = roomById(current)
+  $('noRoom').hidden = !!r
+  $('roomView').hidden = !r
+  if (!r) return
+  $('roomName').textContent = r.title
+  const where = r.mine ? 'In your space' : `In ${r.ownerName}'s space`
+  const who = r.removed ? 'removed' : r.online === 0 ? 'nobody else online' : `${r.online} online`
+  $('roomSub').textContent = `${where} · ${who}`
+  $('inviteBtn').hidden = !r.mine
+  $('membersBtn').hidden = !r.mine
+  $('leaveBtn').hidden = r.mine || r.removed
+  $('removedBanner').hidden = !r.removed
+  $('composer').classList.toggle('disabled', r.removed)
+  $('text').placeholder = r.removed ? '' : `Message #${r.title}`
+  $('membersPanel').hidden = !(membersOpen && r.mine)
+  if (membersOpen && r.mine) renderMembers(r)
+}
+
+function renderMembers (r) {
+  const list = $('memberList')
+  list.textContent = ''
+  for (const m of r.members || []) {
+    const li = el('li')
+    li.append(el('span', 'badge', badge(m.key).emoji), el('span', 'who', m.name))
+    if (m.owner) li.append(el('span', 'tag', 'owner'))
+    else {
+      const btn = el('button', 'ghost', 'Remove')
+      twoClick(btn, 'Sure?', async () => { await s.removeMember(r.id, m.key); toast(`${m.name} removed`) })
+      li.append(btn)
+    }
+    list.append(li)
+  }
 }
 
 // Turn plain links into clickable ones without ever injecting raw HTML.
-function fillBody (el, text) {
-  const parts = text.split(/(https?:\/\/[^\s<]+)/g)
-  for (const p of parts) {
+function fillBody (node, text) {
+  for (const p of text.split(/(https?:\/\/[^\s<]+)/g)) {
     if (/^https?:\/\//.test(p)) {
-      const a = document.createElement('a')
+      const a = el('a', null, p)
       a.href = p
       a.target = '_blank'
-      a.textContent = p
-      el.append(a)
-    } else if (p) el.append(document.createTextNode(p))
+      node.append(a)
+    } else if (p) node.append(document.createTextNode(p))
   }
 }
 
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 const fmtDay = (ts) => new Date(ts).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
 
+function noteText (rec) {
+  if (rec.kind === 'room') return `${rec.name} made this room`
+  if (rec.kind === 'join') return `${rec.name} joined`
+  if (rec.kind === 'rekey') {
+    return rec.removedNames && rec.removedNames.length
+      ? `${rec.name} removed ${rec.removedNames.join(', ')}`
+      : `${rec.name} changed the room key`
+  }
+  return ''
+}
+
 function renderMessages () {
   const box = $('messages')
+  if (!current) return
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80
   box.textContent = ''
-  const list = state.messages.filter((m) => m.channel === current)
-  if (!list.length) {
-    const p = document.createElement('p')
-    p.className = 'empty'
-    p.textContent = `Nothing in #${current} yet. Say something.`
-    box.append(p)
-    return
-  }
+  const list = records[current] || []
   let prev = null
+  let prevDay = null
   for (const m of list) {
-    if (!prev || fmtDay(prev.ts) !== fmtDay(m.ts)) {
-      const d = document.createElement('div')
-      d.className = 'day'
-      d.textContent = fmtDay(m.ts)
-      box.append(d)
+    if (fmtDay(m.ts) !== prevDay) {
+      box.append(el('div', 'day', fmtDay(m.ts)))
+      prevDay = fmtDay(m.ts)
       prev = null
     }
+    if (m.kind !== 'msg') {
+      box.append(el('div', 'note', `${noteText(m)} · ${fmtTime(m.ts)}`))
+      prev = null
+      continue
+    }
     const cont = prev && prev.author === m.author && m.ts - prev.ts < 5 * 60 * 1000
-    const row = document.createElement('div')
-    row.className = 'msg' + (cont ? ' cont' : '')
+    const row = el('div', 'msg' + (cont ? ' cont' : ''))
     const b = badge(m.author)
-
-    const av = document.createElement('div')
-    av.className = 'avatar'
+    const av = el('div', 'avatar', [...b.emoji][0])
     av.style.background = b.color
-    av.textContent = [...b.emoji][0]
-
-    const meta = document.createElement('div')
-    meta.className = 'meta'
-    const name = document.createElement('span')
-    name.className = 'name'
-    name.textContent = m.name
-    const bd = document.createElement('span')
-    bd.className = 'badge'
+    const meta = el('div', 'meta')
+    const bd = el('span', 'badge', b.emoji)
     bd.title = 'Identity check: the same person always has the same pair'
-    bd.textContent = b.emoji
-    const time = document.createElement('span')
-    time.className = 'time'
-    time.textContent = fmtTime(m.ts)
-    meta.append(name, bd, time)
-
-    const body = document.createElement('div')
-    body.className = 'body'
+    meta.append(el('span', 'name', m.name), bd, el('span', 'time', fmtTime(m.ts)))
+    const body = el('div', 'body')
     fillBody(body, m.text)
-
     row.append(av, meta, body)
     box.append(row)
     prev = m
   }
-  if (atBottom || list[list.length - 1].author === state.me.publicKey) box.scrollTop = box.scrollHeight
-}
-
-function renderPeers (n) {
-  const el = $('peerStatus')
-  el.textContent = n === 0 ? 'Just you right now' : n === 1 ? '1 friend online' : `${n} friends online`
-  el.classList.toggle('live', n > 0)
-}
-
-function renderThemes (themes, theme) {
-  const sel = $('themeSelect')
-  sel.textContent = ''
-  for (const t of themes) {
-    const o = document.createElement('option')
-    o.value = t
-    o.textContent = t
-    if (t === theme) o.selected = true
-    sel.append(o)
+  if (!list.some((r) => r.kind === 'msg')) {
+    const r = roomById(current)
+    if (r && !r.removed) {
+      box.append(el('p', 'empty', r.mine
+        ? `Nothing in #${r.title} yet. Copy the invite to bring people in.`
+        : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
+    }
   }
+  const last = list[list.length - 1]
+  if (atBottom || (last && last.author === me.publicKey)) box.scrollTop = box.scrollHeight
 }
 
-function showChat () {
-  $('welcome').hidden = true
-  $('chat').hidden = false
-  $('groupTitle').textContent = state.group.name
-  const b = badge(state.me.publicKey)
-  $('meLine').textContent = `${b.emoji} ${state.me.name}`
-  renderPeers(state.peers)
-  renderThemes(state.themes, state.theme)
-  openChannel(current)
+function renderAll () {
+  renderSidebar()
+  renderHeader()
+  renderMessages()
 }
 
-async function refresh () {
-  state = await g.state()
-  applyTheme(state.themeCSS)
-  if (!state.me.name || !state.group) showWelcome()
-  else showChat()
+// ---------- Room actions ----------
+$('inviteBtn').onclick = async () => {
+  try { await s.copyInvite(current); toast('Invite copied. Anyone with it can join this room, so share it privately.') } catch (e) { toast(e.message) }
+}
+$('membersBtn').onclick = () => { membersOpen = !membersOpen; renderHeader() }
+$('closeMembers').onclick = () => { membersOpen = false; renderHeader() }
+twoClick($('leaveBtn'), 'Click again to leave', async () => {
+  await s.leaveRoom(current)
+  current = null
+  await refresh()
+})
+$('dismissBtn').onclick = async () => {
+  try { await s.leaveRoom(current); current = null; await refresh() } catch (e) { toast(e.message) }
 }
 
 // Send on Enter, new line on Shift+Enter.
@@ -211,60 +289,64 @@ $('text').addEventListener('input', (e) => {
 $('composer').onsubmit = async (e) => {
   e.preventDefault()
   const t = $('text')
-  if (!t.value.trim()) return
+  if (!t.value.trim() || !current) return
   try {
-    await g.post(current, t.value)
+    await s.post(current, t.value)
     t.value = ''
     t.style.height = 'auto'
   } catch (err) { toast(err.message) }
 }
 
-$('newChannel').onsubmit = (e) => {
-  e.preventDefault()
-  const name = $('newChannelInput').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 32)
-  $('newChannelInput').value = ''
-  if (!name) return
-  extraChannels.add(name)
-  openChannel(name)
+// ---------- Themes ----------
+function renderThemes (themes, theme) {
+  const sel = $('themeSelect')
+  sel.textContent = ''
+  for (const t of themes) {
+    const o = el('option', null, t)
+    o.value = t
+    if (t === theme) o.selected = true
+    sel.append(o)
+  }
 }
+$('themesBtn').onclick = () => s.openThemes()
+$('themeSelect').onchange = async (e) => applyTheme((await s.setTheme(e.target.value)).css)
 
-$('inviteBtn').onclick = async () => { await g.copyInvite(); toast('Invite copied. Only share it with people you trust.') }
-$('themesBtn').onclick = () => g.openThemes()
+// ---------- Live updates ----------
+s.onRecord((r) => {
+  if (!records[r.room]) records[r.room] = []
+  if (records[r.room].some((x) => x.id === r.id)) return
+  records[r.room].push(r)
+  records[r.room].sort((a, b) => a.ts - b.ts)
+  if (r.room !== current && r.kind === 'msg') unread.add(r.room)
+  renderSidebar()
+  if (r.room === current) renderMessages()
+})
+s.onRooms((list) => {
+  rooms = list
+  if (current && !roomById(current)) current = null
+  renderSidebar()
+  renderHeader()
+})
+s.onTheme(({ themes, theme, css }) => { renderThemes(themes, theme); applyTheme(css) })
 
-// Two clicks to leave, so nobody leaves by accident.
-$('leaveBtn').onclick = async () => {
-  const b = $('leaveBtn')
-  if (!b.classList.contains('confirm')) {
-    b.classList.add('confirm')
-    b.textContent = 'Click again to leave'
-    clearTimeout(b.timer)
-    b.timer = setTimeout(() => { b.classList.remove('confirm'); b.textContent = 'Leave group' }, 4000)
+async function refresh () {
+  const st = await s.state()
+  me = st.me
+  rooms = st.rooms
+  records = st.records
+  applyTheme(st.themeCSS)
+  renderThemes(st.themes, st.theme)
+  if (!me.name) {
+    $('welcome').hidden = false
+    $('chat').hidden = true
+    $('nameInput').focus()
     return
   }
-  clearTimeout(b.timer)
-  b.classList.remove('confirm')
-  b.textContent = 'Leave group'
-  try {
-    await g.leaveGroup()
-    current = 'general'
-    unread.clear()
-    extraChannels.clear()
-    extraChannels.add('general')
-    await refresh()
-  } catch (err) { toast(err.message) }
+  $('welcome').hidden = true
+  $('chat').hidden = false
+  if (current && !roomById(current)) current = null
+  if (!current && rooms.length) current = [...rooms].sort((a, b) => (b.mine - a.mine) || a.title.localeCompare(b.title))[0].id
+  renderAll()
 }
-$('themeSelect').onchange = async (e) => {
-  const r = await g.setTheme(e.target.value)
-  applyTheme(r.css)
-}
-
-g.onMessage((m) => {
-  state.messages.push(m)
-  if (m.channel !== current) unread.add(m.channel)
-  renderChannels()
-  if (m.channel === current) renderMessages()
-})
-g.onPeers(renderPeers)
-g.onTheme(({ themes, theme, css }) => { renderThemes(themes, theme); applyTheme(css) })
 
 refresh()

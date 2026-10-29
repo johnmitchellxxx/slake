@@ -11,14 +11,15 @@ const call = async (name, arg) => {
 contextBridge.exposeInMainWorld('slake', {
   state: () => call('state'),
   setName: (n) => call('setName', n),
-  createGroup: (n) => call('createGroup', n),
-  joinGroup: (inv) => call('joinGroup', inv),
-  post: (channel, text) => call('post', { channel, text }),
-  copyInvite: () => call('copyInvite'),
-  leaveGroup: () => call('leaveGroup'),
+  createRoom: (title) => call('createRoom', title),
+  joinRoom: (invite) => call('joinRoom', invite),
+  post: (room, text) => call('post', { room, text }),
+  copyInvite: (room) => call('copyInvite', room),
+  removeMember: (room, key) => call('removeMember', { room, key }),
+  leaveRoom: (room) => call('leaveRoom', room),
   openThemes: () => call('openThemes'),
   setTheme: (t) => call('setTheme', t),
-  onMessage: (fn) => ipcRenderer.on('message', (_e, m) => fn(m)),
-  onPeers: (fn) => ipcRenderer.on('peers', (_e, n) => fn(n)),
+  onRecord: (fn) => ipcRenderer.on('record', (_e, r) => fn(r)),
+  onRooms: (fn) => ipcRenderer.on('rooms', (_e, list) => fn(list)),
   onTheme: (fn) => ipcRenderer.on('theme', (_e, t) => fn(t))
 })

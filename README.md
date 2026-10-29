@@ -2,8 +2,12 @@
 
 Chat that lives on your friends' computers. No server, no bill.
 
-Every copy of Slake keeps the whole conversation and passes new messages
-along to whoever else is online, the way gossip spreads.
+Everyone has a **space**. Rooms live in their owner's space. The owner invites
+people to a room, and can remove them. Your sidebar shows your own space plus
+every room you've been invited to, grouped by whose space it's in.
+
+Every copy of Slake keeps the history of its rooms and passes new messages
+along to whoever else in that room is online, the way gossip spreads.
 
 ## Run it on your Mac (or PC)
 
@@ -25,11 +29,12 @@ that file as the App/File. Pressing the key opens Terminal and starts Slake.
 
 **Try it with two people on one computer:** leave the first window open,
 open a second Terminal tab in the same folder, and run `npm run second`.
-That's a separate person with their own identity. Start a group in one,
-click **Copy invite link**, paste it into the other, and say hi.
+That's a separate person with their own identity. In one window, make a room
+with **+ new room**, click **Copy invite**, paste it into the other window's
+"Paste an invite" box, and say hi.
 
 **Try it with a friend:** they download this folder, run the same two
-commands, and paste your invite link. That's it — no accounts, no sign-up.
+commands, and paste your room invite. That's it — no accounts, no sign-up.
 
 ## How it works (plain version)
 
@@ -37,16 +42,23 @@ commands, and paste your invite link. That's it — no accounts, no sign-up.
   leaves your computer. Every message you send is signed with it, so nobody
   can fake a message from you. The little emoji pair next to each name comes
   from that key — the real Duke always has the same pair.
-- **The invite link is the house key.** It contains the group's secret.
-  Anyone with the link can join and read everything, so share it privately.
+- **Every room has its own key.** Holding the key is what being in the room
+  means. People in one of your rooms can't see your other rooms, or even tell
+  they exist.
+- **Only the owner invites.** A room's invite carries its key, and only the
+  owner can make one. Anyone with the invite can join, so share it privately.
+- **Removing someone** makes a fresh room key. Slake seals a copy to each
+  remaining member's identity, so only they can open it. The removed person
+  keeps what they already saw but can't follow anything new, and posts they
+  try to sneak in with the old key get refused.
 - **Finding each other.** Computers meet through a big public "phone book"
   spread across thousands of machines that nobody owns. The phone book only
-  ever sees a scrambled fingerprint of your group, never the secret.
-- **Proving membership.** When two computers connect, each proves it knows
-  the secret without ever sending it. Strangers who find the fingerprint get
-  disconnected before they see anything. The connection itself is encrypted.
-- **History.** When you come online you swap notes with whoever's there and
-  catch up on what you missed. Anything new gets passed along to everyone.
+  ever sees a scrambled fingerprint of each room key, never the key.
+- **Proving membership.** When two computers connect, each proves which room
+  keys it holds without ever sending them. Strangers get disconnected before
+  they see anything. The connection itself is encrypted.
+- **History.** When you come online you swap notes with whoever's in your
+  rooms and catch up on what you missed.
 
 ## Make it yours
 
@@ -63,21 +75,25 @@ the networking is all in `core.js`.
 On a Mac: `~/Library/Application Support/slake/`
 - `data/identity.json` — **your private key. Back this file up.** Lose it and
   that identity is gone (there's no "forgot password").
-- `data/group.json` — the group secret.
-- `data/messages.ndjson` — the full history, one message per line.
+- `data/rooms/<id>.json` — a room's name, owner and keys.
+- `data/rooms/<id>.ndjson` — that room's history, one record per line.
 - `themes/` — your themes.
 
-## Known limits of v0.1 (on purpose)
+## Known limits (on purpose, for now)
 
-- One group per install.
-- Messages only travel when at least two members are online at the same time.
-- No phones yet, no notifications while the app is closed, no removing people
-  (to kick someone out today: start a fresh group and re-invite everyone else).
-- No recovery phrase yet — back up `identity.json` by hand.
+- Only the owner can invite or remove. If the owner is offline, the room still
+  works, but nobody can be added or removed until they're back.
+- An invite made before someone was removed stops working for new messages
+  (whoever uses it ends up seeing "You're no longer in this room").
+- Messages only travel when at least two members of a room are online at once.
+- No direct messages yet (they'll just be two-person rooms), no phones, no
+  notifications while the app is closed.
+- No recovery phrase yet. Back up `identity.json` by hand.
 
 ## For developers
 
-`npm test` runs three copies on a private offline network: Alice starts a
-group, Bob joins late and catches up, and Mallory tries to sneak in with the
-group's fingerprint but the wrong secret (she gets kicked). It also checks
-that tampered messages are refused and that history survives a restart.
+`npm test` runs three copies on a private offline network. John makes two
+rooms and invites Bob to one and Sam to both, checks Bob never sees the other
+room, joins a room in Bob's space, removes Bob from a room and confirms Bob is
+cut off while Sam keeps going, checks forged and tampered records are refused,
+and that rooms, keys and history survive a restart.

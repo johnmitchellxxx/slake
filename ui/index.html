@@ -8,31 +8,16 @@
   <style id="theme"></style>
 </head>
 <body>
-  <!-- First launch: pick a name, then start or join a group -->
+  <!-- First launch: pick a name -->
   <section id="welcome" class="screen" hidden>
     <div class="card">
       <h1 class="wordmark">slake</h1>
       <p class="sub">Chat that lives on your friends' computers. No server, no bill.</p>
-
       <form id="nameForm">
         <label for="nameInput">What should people call you?</label>
         <input id="nameInput" maxlength="40" autocomplete="off" placeholder="Your name" required>
         <button type="submit">Continue</button>
       </form>
-
-      <div id="groupStep" hidden>
-        <form id="createForm">
-          <label for="groupName">Start a new group</label>
-          <input id="groupName" maxlength="40" autocomplete="off" placeholder="Group name" required>
-          <button type="submit">Start group</button>
-        </form>
-        <div class="or">or</div>
-        <form id="joinForm">
-          <label for="inviteInput">Join with an invite</label>
-          <input id="inviteInput" autocomplete="off" placeholder="slake:…" required>
-          <button type="submit" class="secondary">Join</button>
-        </form>
-      </div>
       <p id="welcomeError" class="error" role="alert"></p>
     </div>
   </section>
@@ -40,40 +25,66 @@
   <!-- The main chat -->
   <section id="chat" class="screen" hidden>
     <aside class="sidebar">
-      <header class="group">
+      <header class="brand">
         <div class="wordmark small">slake</div>
-        <div id="groupTitle" class="group-name"></div>
-        <div id="peerStatus" class="peers"></div>
+        <div id="meLine" class="me-line"></div>
       </header>
 
-      <nav>
-        <div class="label">Channels</div>
-        <ul id="channels"></ul>
-        <form id="newChannel">
-          <input id="newChannelInput" maxlength="32" placeholder="+ new channel" autocomplete="off">
-        </form>
-      </nav>
+      <nav id="spaces"></nav>
 
-      <footer class="me">
-        <button id="inviteBtn" class="secondary full">Copy invite link</button>
+      <footer class="foot">
+        <form id="joinForm" class="join">
+          <input id="joinInput" autocomplete="off" placeholder="Paste an invite to join a room">
+        </form>
         <div class="theme-row">
           <select id="themeSelect" aria-label="Theme"></select>
           <button id="themesBtn" class="ghost" title="Open your themes folder">Edit</button>
-        </div>
-        <div class="me-row">
-          <div id="meLine" class="me-line"></div>
-          <button id="leaveBtn" class="ghost small" title="Leave this group">Leave group</button>
         </div>
       </footer>
     </aside>
 
     <main class="room">
-      <header class="room-head"><span class="hash">#</span><span id="roomName"></span></header>
-      <div id="messages" class="messages" aria-live="polite"></div>
-      <form id="composer" class="composer">
-        <textarea id="text" rows="1" maxlength="4000" placeholder="Say something…"></textarea>
-        <button type="submit">Send</button>
-      </form>
+      <div id="noRoom" class="no-room" hidden>
+        <h2>This is your space.</h2>
+        <p>Make a room with <b>+ new room</b> on the left, then invite people to it.<br>
+           Got an invite from someone? Paste it in the box at the bottom left.</p>
+      </div>
+
+      <div id="roomView" class="room-view" hidden>
+        <header class="room-head">
+          <div class="room-title">
+            <div><span class="hash">#</span><span id="roomName"></span></div>
+            <div id="roomSub" class="room-sub"></div>
+          </div>
+          <div class="room-actions">
+            <button id="inviteBtn" class="secondary">Copy invite</button>
+            <button id="membersBtn" class="secondary">Members</button>
+            <button id="leaveBtn" class="ghost">Leave room</button>
+          </div>
+        </header>
+
+        <div id="removedBanner" class="banner" hidden>
+          You're no longer in this room. You can still read what was said before.
+          <button id="dismissBtn" class="ghost">Remove from sidebar</button>
+        </div>
+
+        <div class="room-body">
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <aside id="membersPanel" class="members" hidden>
+            <div class="members-head">
+              <span>Members</span>
+              <button id="closeMembers" class="ghost" aria-label="Close">✕</button>
+            </div>
+            <ul id="memberList"></ul>
+            <p class="hint">Removing someone gives everyone else a new room key. They keep what they already saw, but can't follow anything new.</p>
+          </aside>
+        </div>
+
+        <form id="composer" class="composer">
+          <textarea id="text" rows="1" maxlength="4000" placeholder="Say something…"></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </div>
     </main>
   </section>
 
