@@ -128,7 +128,7 @@ $('joinForm').onsubmit = async (e) => {
 
 // ---------- Room ----------
 function openRoom (id) {
-  if (id !== current) { pending = null; showPending() }
+  if (id !== current) { pending = null; showPending(); membersOpen = false }
   current = id
   unread.delete(id)
   if (!roomById(id)) current = null
@@ -424,6 +424,7 @@ $('searchClose').onclick = closeSearch
 document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !$('chat').hidden) { e.preventDefault(); openSearch() }
   if (e.key === 'Escape' && searching) closeSearch()
+  else if (e.key === 'Escape' && membersOpen) closeMembers()
 })
 
 function renderAll () {
@@ -546,6 +547,9 @@ document.addEventListener('contextmenu', async (e) => {
     }
   } catch (err) { toast(err.message) }
 })
+
+function closeMembers () { membersOpen = false; renderHeader() }
+$('closeMembers').onclick = closeMembers
 
 $('dismissBtn').onclick = async () => {
   try { await s.leaveRoom(current); current = null; await refresh() } catch (e) { toast(e.message) }
