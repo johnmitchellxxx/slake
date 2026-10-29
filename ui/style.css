@@ -1,0 +1,140 @@
+/* ============================================================
+   Gossip default look.
+   Want to restyle it? Don't edit this file — copy a theme from
+   your themes folder (the "Edit" button in the app) and change
+   the variables below. Saving the file repaints the app live.
+   ============================================================ */
+:root {
+  --bg: #16161d;          /* message area */
+  --panel: #1e1e28;       /* sidebar */
+  --panel-2: #262634;     /* inputs, hover */
+  --text: #ece9f2;
+  --muted: #8d8aa0;
+  --accent: #ff7a59;      /* buttons, active channel */
+  --accent-text: #1a0f0b;
+  --line: #30303f;
+  --danger: #ff6b81;
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --wordmark: Georgia, "Iowan Old Style", serif;
+  --msg-size: 15px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: var(--msg-size)/1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+
+button, input, textarea, select {
+  font: inherit; color: inherit;
+}
+button {
+  background: var(--accent); color: var(--accent-text);
+  border: 0; border-radius: var(--radius);
+  padding: 9px 16px; font-weight: 600; cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button.secondary { background: var(--panel-2); color: var(--text); }
+button.ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
+button.full { width: 100%; }
+input, textarea, select {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 9px 12px; outline: none;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+.wordmark {
+  font-family: var(--wordmark); font-style: italic; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--accent);
+}
+
+/* ---------- Welcome ---------- */
+.screen { height: 100vh; }
+#welcome { display: grid; place-items: center; padding: 24px; }
+.card { width: min(420px, 100%); }
+.card h1 { font-size: 64px; margin: 0; line-height: 1; }
+.card .sub { color: var(--muted); margin: 10px 0 32px; }
+.card form { display: grid; gap: 8px; margin-bottom: 12px; }
+.card label { font-size: 13px; color: var(--muted); }
+.or { text-align: center; color: var(--muted); margin: 14px 0; font-size: 13px; }
+.error { color: var(--danger); min-height: 1.4em; font-size: 14px; }
+
+/* ---------- Chat layout ---------- */
+#chat { display: grid; grid-template-columns: 240px 1fr; }
+.sidebar {
+  background: var(--panel); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.group { padding: 18px 16px 14px; border-bottom: 1px solid var(--line); }
+.wordmark.small { font-size: 20px; }
+.group-name { font-weight: 700; margin-top: 6px; }
+.peers { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.peers::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted); margin-right: 6px; vertical-align: 1px;
+}
+.peers.live::before { background: #5ad48a; }
+
+nav { flex: 1; overflow-y: auto; padding: 14px 8px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 8px 6px; }
+#channels { list-style: none; margin: 0; padding: 0; }
+#channels li {
+  padding: 5px 10px; border-radius: 6px; cursor: pointer; color: var(--muted);
+  display: flex; justify-content: space-between; align-items: center;
+}
+#channels li:hover { background: var(--panel-2); color: var(--text); }
+#channels li.active { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+#channels li.unread { color: var(--text); font-weight: 700; }
+#channels li .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+#newChannel { padding: 6px 2px 0; }
+#newChannelInput { width: 100%; background: transparent; border-color: transparent; padding: 5px 8px; font-size: 14px; }
+#newChannelInput:focus { background: var(--panel-2); border-color: var(--line); }
+
+.me { padding: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.theme-row { display: flex; gap: 6px; }
+.theme-row select { flex: 1; padding: 6px 8px; font-size: 13px; }
+.me-line { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+
+/* ---------- Room ---------- */
+.room { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.room-head {
+  padding: 16px 22px; border-bottom: 1px solid var(--line);
+  font-weight: 700; font-size: 17px;
+}
+.hash { color: var(--muted); margin-right: 3px; }
+.messages { flex: 1; overflow-y: auto; padding: 16px 22px; }
+.empty { color: var(--muted); text-align: center; margin-top: 20vh; }
+
+.msg { display: grid; grid-template-columns: 38px 1fr; gap: 0 10px; margin-top: 14px; }
+.msg.cont { margin-top: 2px; }
+.msg.cont .avatar, .msg.cont .meta { display: none; }
+.msg.cont .body { grid-column: 2; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center; font-size: 18px; grid-row: span 2;
+}
+.meta { display: flex; align-items: baseline; gap: 8px; }
+.name { font-weight: 700; }
+.badge { font-size: 12px; letter-spacing: 1px; }
+.time { font-size: 12px; color: var(--muted); }
+.body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.body a { color: var(--accent); }
+.day {
+  text-align: center; font-size: 12px; color: var(--muted);
+  margin: 22px 0 6px; text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.composer { display: flex; gap: 10px; padding: 14px 22px 18px; border-top: 1px solid var(--line); }
+.composer textarea { flex: 1; resize: none; max-height: 180px; line-height: 1.4; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 8px 16px;
+  border-radius: 999px; font-size: 14px; font-weight: 600;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "gossip",
+  "version": "0.1.0",
+  "description": "Serverless peer-to-peer chat for small groups of friends.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "second": "electron . --profile=second",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "hypercore-crypto": "^3.7.0",
+    "hyperswarm": "^4.17.2"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "hyperdht": "^6.35.0"
+  }
+}
