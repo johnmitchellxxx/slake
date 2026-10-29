@@ -8,7 +8,7 @@ const call = async (name, arg) => {
   return r.value
 }
 
-contextBridge.exposeInMainWorld('gossip', {
+contextBridge.exposeInMainWorld('slake', {
   state: () => call('state'),
   setName: (n) => call('setName', n),
   createGroup: (n) => call('createGroup', n),

@@ -1,4 +1,4 @@
-// Gossip engine: everything that isn't the window.
+// Slake engine: everything that isn't the window.
 // No servers. Each copy keeps the whole group history and passes along
 // anything new to whoever else is online.
 
@@ -20,7 +20,7 @@ function hmac (key, data) {
 
 // The exact bytes a message's signature covers.
 function signable (m) {
-  return Buffer.from(JSON.stringify(['gossip/1', m.channel, m.author, m.name, m.text, m.ts]))
+  return Buffer.from(JSON.stringify(['slake/1', m.channel, m.author, m.name, m.text, m.ts]))
 }
 
 function messageId (m) {
@@ -39,18 +39,18 @@ function validMessage (m) {
   return hc.verify(signable(m), Buffer.from(m.sig, 'hex'), Buffer.from(m.author, 'hex'))
 }
 
-// Invite format: gossip:<url-encoded group name>:<64 hex chars of group secret>
+// Invite format: slake:<url-encoded group name>:<64 hex chars of group secret>
 function makeInvite (name, secretHex) {
-  return 'gossip:' + encodeURIComponent(name) + ':' + secretHex
+  return 'slake:' + encodeURIComponent(name) + ':' + secretHex
 }
 
 function parseInvite (str) {
-  const m = /^gossip:([^:]*):([0-9a-f]{64})$/.exec(String(str).trim())
+  const m = /^slake:([^:]*):([0-9a-f]{64})$/.exec(String(str).trim())
   if (!m) return null
-  return { name: decodeURIComponent(m[1]) || 'Gossip', secret: m[2] }
+  return { name: decodeURIComponent(m[1]) || 'Slake', secret: m[2] }
 }
 
-class Gossip extends EventEmitter {
+class Slake extends EventEmitter {
   constructor ({ dataDir, makeSwarm } = {}) {
     super()
     this.dataDir = dataDir
@@ -116,7 +116,7 @@ class Gossip extends EventEmitter {
   async createGroup (name) {
     if (this.group) throw new Error('Already in a group')
     const secret = hc.randomBytes(32).toString('hex')
-    this.group = { name: String(name || 'Gossip').trim().slice(0, 40) || 'Gossip', secret }
+    this.group = { name: String(name || 'Slake').trim().slice(0, 40) || 'Slake', secret }
     this._writeJSON('group.json', this.group, 0o600)
     await this._join()
   }
@@ -124,7 +124,7 @@ class Gossip extends EventEmitter {
   async joinGroup (invite) {
     if (this.group) throw new Error('Already in a group')
     const parsed = parseInvite(invite)
-    if (!parsed) throw new Error("That doesn't look like a Gossip invite")
+    if (!parsed) throw new Error("That doesn't look like a Slake invite")
     this.group = parsed
     this._writeJSON('group.json', this.group, 0o600)
     await this._join()
@@ -242,4 +242,4 @@ class Gossip extends EventEmitter {
   }
 }
 
-module.exports = { Gossip, parseInvite, makeInvite, validMessage }
+module.exports = { Slake, parseInvite, makeInvite, validMessage }

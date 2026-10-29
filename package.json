@@ -1,7 +1,7 @@
 {
-  "name": "gossip",
+  "name": "slake",
   "version": "0.1.0",
-  "description": "Serverless peer-to-peer chat for small groups of friends.",
+  "description": "Serverless peer-to-peer chat for a small group of friends.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

@@ -3,14 +3,14 @@
 const { app, BrowserWindow, ipcMain, Notification, shell, clipboard } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const { Gossip } = require('./core')
+const { Slake } = require('./core')
 
 // `npm run second` gives you a separate person on the same computer, for testing.
 const profile = (process.argv.find((a) => a.startsWith('--profile=')) || '').split('=')[1]
-if (profile) app.setPath('userData', path.join(app.getPath('appData'), 'Gossip-' + profile))
+if (profile) app.setPath('userData', path.join(app.getPath('appData'), 'Slake-' + profile))
 
 let win
-let gossip
+let slake
 const themesDir = () => path.join(app.getPath('userData'), 'themes')
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 
@@ -45,11 +45,11 @@ function send (channel, data) {
 
 function state () {
   return {
-    me: gossip.me,
-    group: gossip.group ? { name: gossip.group.name } : null,
-    invite: gossip.invite,
-    messages: [...gossip.messages.values()].sort((a, b) => a.ts - b.ts),
-    peers: gossip.peerCount,
+    me: slake.me,
+    group: slake.group ? { name: slake.group.name } : null,
+    invite: slake.invite,
+    messages: [...slake.messages.values()].sort((a, b) => a.ts - b.ts),
+    peers: slake.peerCount,
     themes: listThemes(),
     theme: readSettings().theme,
     themeCSS: themeCSS(readSettings().theme)
@@ -58,13 +58,13 @@ function state () {
 
 app.whenReady().then(async () => {
   seedThemes()
-  gossip = new Gossip({ dataDir: path.join(app.getPath('userData'), 'data') })
-  await gossip.start()
+  slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data') })
+  await slake.start()
 
-  gossip.on('peers', (n) => send('peers', n))
-  gossip.on('message', (m) => {
+  slake.on('peers', (n) => send('peers', n))
+  slake.on('message', (m) => {
     send('message', m)
-    if (m.author !== gossip.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
+    if (m.author !== slake.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
       new Notification({ title: `${m.name} in #${m.channel}`, body: m.text.slice(0, 200) }).show()
     }
   })
@@ -79,11 +79,11 @@ app.whenReady().then(async () => {
     try { return { ok: true, value: await fn(arg) } } catch (err) { return { ok: false, error: err.message } }
   })
   handle('state', () => state())
-  handle('setName', (n) => gossip.setName(n))
-  handle('createGroup', (n) => gossip.createGroup(n))
-  handle('joinGroup', (inv) => gossip.joinGroup(inv))
-  handle('post', ({ channel, text }) => gossip.post(channel, text))
-  handle('copyInvite', () => clipboard.writeText(gossip.invite || ''))
+  handle('setName', (n) => slake.setName(n))
+  handle('createGroup', (n) => slake.createGroup(n))
+  handle('joinGroup', (inv) => slake.joinGroup(inv))
+  handle('post', ({ channel, text }) => slake.post(channel, text))
+  handle('copyInvite', () => clipboard.writeText(slake.invite || ''))
   handle('openThemes', () => shell.openPath(themesDir()))
   handle('setTheme', (t) => {
     writeSettings({ ...readSettings(), theme: t })
@@ -95,7 +95,7 @@ app.whenReady().then(async () => {
     height: 680,
     minWidth: 640,
     minHeight: 420,
-    title: profile ? `Gossip (${profile})` : 'Gossip',
+    title: profile ? `Slake (${profile})` : 'Slake',
     backgroundColor: '#16161d',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -114,6 +114,6 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', async () => {
-  if (gossip) await gossip.stop()
+  if (slake) await slake.stop()
   app.quit()
 })

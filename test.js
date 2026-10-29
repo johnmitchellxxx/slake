@@ -1,4 +1,4 @@
-// Runs three copies of Gossip on a private, offline test network:
+// Runs three copies of Slake on a private, offline test network:
 // Alice starts a group, Bob joins with her invite, Mallory tries to
 // sneak in with a made-up invite. Run with: npm test
 const createTestnet = require('hyperdht/testnet')
@@ -6,7 +6,7 @@ const os = require('os')
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
-const { Gossip } = require('./core')
+const { Slake } = require('./core')
 const DHT = require('hyperdht')
 const Hyperswarm = require('hyperswarm')
 
@@ -19,9 +19,9 @@ async function until (fn, label, ms = 20000) {
 
 ;(async () => {
   const testnet = await createTestnet(3)
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gossip-test-'))
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'slake-test-'))
   const makeSwarm = () => new Hyperswarm({ dht: new DHT({ bootstrap: testnet.bootstrap, host: '127.0.0.1' }) })
-  const mk = (n) => new Gossip({ dataDir: path.join(tmp, n), makeSwarm })
+  const mk = (n) => new Slake({ dataDir: path.join(tmp, n), makeSwarm })
 
   const alice = mk('alice'); await alice.start(); alice.setName('Alice')
   await alice.createGroup('Test Crew')
@@ -61,7 +61,7 @@ async function until (fn, label, ms = 20000) {
 
   // Restart Bob: history should survive on disk.
   await bob.stop()
-  const bob2 = new Gossip({ dataDir: path.join(tmp, 'bob'), makeSwarm })
+  const bob2 = new Slake({ dataDir: path.join(tmp, 'bob'), makeSwarm })
   await bob2.start()
   assert.strictEqual(bob2.messages.size, 2)
   assert.strictEqual(bob2.me.name, 'Bob')

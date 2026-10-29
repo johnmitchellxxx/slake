@@ -1,6 +1,6 @@
-// What you see on screen. Talks to the engine only through window.gossip.
+// What you see on screen. Talks to the engine only through window.slake.
 const $ = (id) => document.getElementById(id)
-const g = window.gossip
+const g = window.slake
 
 let state
 let current = 'general'
@@ -116,7 +116,7 @@ function renderMessages () {
   if (!list.length) {
     const p = document.createElement('p')
     p.className = 'empty'
-    p.textContent = `Nothing in #${current} yet. Start the rumor.`
+    p.textContent = `Nothing in #${current} yet. Say something.`
     box.append(p)
     return
   }

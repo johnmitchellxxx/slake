@@ -1,9 +1,9 @@
-# gossip
+# slake
 
 Chat that lives on your friends' computers. No server, no bill.
 
-Every copy of Gossip keeps the whole conversation and passes new messages
-along to whoever else is online — like gossip.
+Every copy of Slake keeps the whole conversation and passes new messages
+along to whoever else is online, the way gossip spreads.
 
 ## Run it on your Mac (or PC)
 
@@ -29,7 +29,7 @@ commands, and paste your invite link. That's it — no accounts, no sign-up.
 
 ## How it works (plain version)
 
-- **You are a key.** On first launch Gossip makes a private key that never
+- **You are a key.** On first launch Slake makes a private key that never
   leaves your computer. Every message you send is signed with it, so nobody
   can fake a message from you. The little emoji pair next to each name comes
   from that key — the real Duke always has the same pair.
@@ -56,7 +56,7 @@ the networking is all in `core.js`.
 
 ## Where your stuff lives
 
-On a Mac: `~/Library/Application Support/gossip/`
+On a Mac: `~/Library/Application Support/slake/`
 - `data/identity.json` — **your private key. Back this file up.** Lose it and
   that identity is gone (there's no "forgot password").
 - `data/group.json` — the group secret.

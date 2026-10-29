@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
-  <title>Gossip</title>
+  <title>Slake</title>
   <link rel="stylesheet" href="style.css">
   <style id="theme"></style>
 </head>
@@ -11,7 +11,7 @@
   <!-- First launch: pick a name, then start or join a group -->
   <section id="welcome" class="screen" hidden>
     <div class="card">
-      <h1 class="wordmark">gossip</h1>
+      <h1 class="wordmark">slake</h1>
       <p class="sub">Chat that lives on your friends' computers. No server, no bill.</p>
 
       <form id="nameForm">
@@ -29,7 +29,7 @@
         <div class="or">or</div>
         <form id="joinForm">
           <label for="inviteInput">Join with an invite</label>
-          <input id="inviteInput" autocomplete="off" placeholder="gossip:…" required>
+          <input id="inviteInput" autocomplete="off" placeholder="slake:…" required>
           <button type="submit" class="secondary">Join</button>
         </form>
       </div>
@@ -41,7 +41,7 @@
   <section id="chat" class="screen" hidden>
     <aside class="sidebar">
       <header class="group">
-        <div class="wordmark small">gossip</div>
+        <div class="wordmark small">slake</div>
         <div id="groupTitle" class="group-name"></div>
         <div id="peerStatus" class="peers"></div>
       </header>
