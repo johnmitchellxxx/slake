@@ -19,6 +19,10 @@ npm start
 
 The first `npm install` takes a minute (it downloads the app shell).
 
+**One-click launch:** double-click `start-slake.command` in this folder. To put it
+on a Stream Deck, drag the **Open** action (under System) onto a key and choose
+that file as the App/File. Pressing the key opens Terminal and starts Slake.
+
 **Try it with two people on one computer:** leave the first window open,
 open a second Terminal tab in the same folder, and run `npm run second`.
 That's a separate person with their own identity. Start a group in one,
