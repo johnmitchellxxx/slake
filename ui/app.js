@@ -9,6 +9,7 @@ let current = null      // open room id
 let membersOpen = false
 const unread = new Set()
 let pending = null      // file chosen but not sent yet: { path, name, size, ttl }
+let online = new Set()  // identity keys of people connected right now
 let searching = false
 
 // Each person gets a stable color + emoji pair made from their key,
@@ -95,7 +96,19 @@ function avatarEl (key, small) {
     node.style.background = b.color
     node.textContent = [...b.emoji][0]
   }
+  if (online.has(key) && key !== (me && me.publicKey)) {
+    const dot = el('span', 'on')
+    dot.title = 'Online now'
+    node.append(dot)
+  }
   return node
+}
+
+// Most recent name someone used anywhere you can see.
+function nameOf (key) {
+  let best = null
+  for (const list of Object.values(records)) for (const r of list) if (r.author === key && r.kind !== 'rekey' && (!best || r.ts > best.ts)) best = r
+  return best ? best.name : 'Someone'
 }
 
 function toast (text) {
@@ -143,7 +156,7 @@ function renderSidebar () {
   const mine = el('div', 'space')
   mine.append(el('div', 'space-name', 'Your space'))
   const ul = el('ul')
-  rooms.filter((r) => r.mine).sort(byTitle).forEach((r) => ul.append(roomItem(r)))
+  rooms.filter((r) => r.mine && !r.dm).sort(byTitle).forEach((r) => ul.append(roomItem(r)))
   mine.append(ul)
   const form = el('form', 'new-room')
   const input = el('input')
@@ -167,7 +180,7 @@ function renderSidebar () {
 
   // Then everyone else's spaces you've been invited into.
   const owners = new Map()
-  for (const r of rooms.filter((x) => !x.mine)) {
+  for (const r of rooms.filter((x) => !x.mine && !x.dm)) {
     if (!owners.has(r.owner)) owners.set(r.owner, { name: r.ownerName, rooms: [] })
     owners.get(r.owner).rooms.push(r)
   }
@@ -182,6 +195,28 @@ function renderSidebar () {
     sp.append(list)
     nav.append(sp)
   }
+
+  // Direct messages, below everything else.
+  const dms = el('div', 'space')
+  dms.append(el('div', 'space-name', 'Direct messages'))
+  const dl = el('ul')
+  const dmRooms = rooms.filter((r) => r.dm)
+  dmRooms.sort((a, b) => (online.has(b.peer) - online.has(a.peer)) || a.title.localeCompare(b.title))
+  for (const r of dmRooms) {
+    const li = el('li')
+    const who = el('span', 'person')
+    who.append(avatarEl(r.peer, true), el('span', null, r.title))
+    li.append(who)
+    if (r.id === current) li.classList.add('active')
+    else if (unread.has(r.id)) { li.classList.add('unread'); li.append(el('span', 'dot')) }
+    li.title = online.has(r.peer) ? `${r.title} is online` : `${r.title} is offline`
+    li.dataset.room = r.id
+    li.onclick = () => openRoom(r.id)
+    dl.append(li)
+  }
+  dms.append(dl)
+  if (!dmRooms.length) dms.append(el('div', 'hint-line', 'Right-click someone to message them.'))
+  nav.append(dms)
 }
 
 $('joinForm').onsubmit = async (e) => {
@@ -215,12 +250,21 @@ function renderHeader () {
   $('roomView').hidden = !r
   if (!r) return
   $('roomName').textContent = r.title
-  const where = r.mine ? 'In your space' : `In ${r.ownerName}'s space`
-  const who = r.removed ? 'removed' : r.online === 0 ? 'nobody else online' : `${r.online} online`
-  $('roomSub').textContent = `${where} · ${who}`
+  document.querySelector('.room-head .hash').hidden = r.dm
+  if (r.dm) {
+    $('roomSub').textContent = online.has(r.peer) ? 'Direct message · online now' : 'Direct message · offline'
+  } else {
+    const where = r.mine ? 'In your space' : `In ${r.ownerName}'s space`
+    const names = (r.onlineKeys || []).map(nameOf)
+    const who = r.removed ? 'removed'
+      : !names.length ? 'nobody else online'
+        : names.length <= 3 ? `${names.join(', ')} online`
+          : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more online`
+    $('roomSub').textContent = `${where} · ${who}`
+  }
   $('removedBanner').hidden = !r.removed
   $('composer').classList.toggle('disabled', r.removed)
-  $('text').placeholder = r.removed ? '' : `Message #${r.title}`
+  $('text').placeholder = r.removed ? '' : r.dm ? `Message ${r.title}` : `Message #${r.title}`
   $('membersPanel').hidden = !(membersOpen && r.mine)
   if (membersOpen && r.mine) renderMembers(r)
 }
@@ -232,6 +276,7 @@ function renderMembers (r) {
     const li = el('li')
     li.dataset.person = m.key
     li.dataset.name = m.name
+    if (online.has(m.key)) li.classList.add('online')
     li.append(avatarEl(m.key, true), el('span', 'who', m.name), el('span', 'badge', badge(m.key).emoji))
     if (m.owner) li.append(el('span', 'tag', 'owner'))
     list.append(li)
@@ -272,8 +317,10 @@ function renderMessages () {
   const list = records[current] || []
   let prev = null
   let prevDay = null
+  const inDM = !!(roomById(current) || {}).dm
   for (const m of list) {
     if (m.kind === 'profile') continue
+    if (inDM && (m.kind === 'room' || m.kind === 'join')) continue
     if (fmtDay(m.ts) !== prevDay) {
       box.append(el('div', 'day', fmtDay(m.ts)))
       prevDay = fmtDay(m.ts)
@@ -312,8 +359,10 @@ function renderMessages () {
   if (!list.some((r) => r.kind === 'msg' || r.kind === 'file')) {
     const r = roomById(current)
     if (r && !r.removed) {
-      box.append(el('p', 'empty', r.mine
-        ? `Nothing in #${r.title} yet. Right-click the room to copy its invite.`
+      box.append(el('p', 'empty', r.dm
+        ? (online.has(r.peer) ? `Say hi to ${r.title}.` : `${r.title} gets this conversation the next time you're both online.`)
+        : r.mine
+        ? `Nothing in #${r.title} yet. Right-click the room to invite people.`
         : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
     }
   }
@@ -559,6 +608,7 @@ async function removePerson (r, key, name) {
 
 function roomMenu (r) {
   if (r.removed) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
+  if (r.dm) return [{ id: 'closeDM', label: 'Close conversation' }]
   if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }]
   return [{ id: 'leave', label: 'Leave room…' }]
 }
@@ -568,6 +618,10 @@ async function runRoomChoice (r, choice) {
   if (choice === 'code') await showCode(r)
   if (choice === 'members') showMembers(r)
   if (choice === 'leave') await leave(r)
+  if (choice === 'closeDM') {
+    const ok = await s.confirm({ action: 'Close', message: `Close your conversation with ${r.title}?`, detail: 'It comes off your sidebar here. To talk again, right-click them and choose Message.' })
+    if (ok) { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }
+  }
   if (choice === 'dismiss') { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }
 }
 
@@ -614,8 +668,12 @@ document.addEventListener('contextmenu', async (e) => {
         items.push({ id: 'copyName', label: 'Copy file name' })
       }
     }
+    if (personEl && personEl.dataset.person !== me.publicKey && !(r && r.dm)) {
+      if (items.length) items.push({ type: 'separator' })
+      items.push({ id: 'dmPerson', label: `Message ${personEl.dataset.name}` })
+    }
     let target = null
-    if (personEl && r && r.mine && !r.removed) {
+    if (personEl && r && r.mine && !r.removed && !r.dm) {
       const key = personEl.dataset.person
       const isMember = (r.members || []).some((x) => x.key === key)
       if (key !== me.publicKey && key !== r.owner && isMember) {
@@ -632,6 +690,11 @@ document.addEventListener('contextmenu', async (e) => {
       toast('Copied')
     }
     if (choice === 'remove' && target) await removePerson(r, target.key, target.name)
+    if (choice === 'dmPerson') {
+      const id = await s.messagePerson(personEl.dataset.person, personEl.dataset.name)
+      await refresh()
+      openRoom(id)
+    }
     if (fileRec) {
       if (choice === 'saveFile' && await s.saveFile(fileRec.fid, fileRec.fname)) toast('Saved')
       if (choice === 'download') await s.download(fileRec.room, fileRec.fid)
@@ -723,6 +786,13 @@ $('emojiForm').onsubmit = (e) => {
   if (v) { $('emojiInput').value = ''; setAvatar({ emoji: v }) }
 }
 
+// ---------- Version, tiny, bottom corner ----------
+function showVersion (v) {
+  if (!v) return
+  const when = v.updated ? ' · updated ' + new Date(v.updated).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''
+  $('versionLine').textContent = `v${v.version}${when}`
+}
+
 // ---------- New version note ----------
 function showUpdate (u) {
   const b = $('updateBanner')
@@ -754,6 +824,12 @@ s.onRooms((list) => {
   renderHeader()
 })
 s.onTheme(({ themes, theme, css }) => { renderThemes(themes, theme); applyTheme(css) })
+s.onOnline((list) => {
+  online = new Set(list)
+  renderSidebar()
+  renderHeader()
+  if (!searching) renderMessages()
+})
 s.onFileStatus(({ room, fid, status }) => {
   for (const r of records[room] || []) if (r.kind === 'file' && r.fid === fid) r.status = status
   if (room === current && !searching) renderMessages()
@@ -764,7 +840,9 @@ async function refresh () {
   me = st.me
   rooms = st.rooms
   records = st.records
+  online = new Set(st.online || [])
   rebuildAvatars()
+  showVersion(st.version)
   applyTheme(st.themeCSS)
   renderThemes(st.themes, st.theme)
   if (!me.name) {

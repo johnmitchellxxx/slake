@@ -176,18 +176,39 @@ function present (room, r) {
   return out
 }
 
+// The name someone most recently used in a room (for DM titles).
+function nameIn (room, key) {
+  let best = null
+  for (const r of room.records.values()) if (r.author === key && r.kind !== 'rekey' && (!best || r.ts > best.ts)) best = r
+  return best ? best.name : null
+}
+
 function roomInfo (room) {
   const mine = room.owner === slake.me.publicKey
+  const dmName = room.dm ? (nameIn(room, room.peer) || (mine ? room.title : room.ownerName)) : null
   return {
     id: room.id,
-    title: room.title,
+    title: room.dm ? dmName : room.title,
+    dm: !!room.dm,
+    peer: room.peer || null,
+    onlineKeys: slake.onlineIn(room.id),
     owner: room.owner,
     ownerName: room.ownerName,
     mine,
     removed: room.removed,
     online: slake.online(room.id),
-    members: mine ? slake.members(room.id) : null
+    members: mine && !room.dm ? slake.members(room.id) : null
   }
+}
+
+// What version this is, and roughly when it arrived on this computer.
+function versionInfo () {
+  let when = null
+  try {
+    const f = app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : path.join(__dirname, 'core.js')
+    when = fs.statSync(f).mtimeMs
+  } catch {}
+  return { version: app.getVersion(), updated: when }
 }
 
 function rooms () { return slake ? [...slake.rooms.values()].map(roomInfo) : [] }
@@ -198,7 +219,7 @@ function state () {
     records[room.id] = [...room.records.values()].sort((a, b) => a.ts - b.ts).map((r) => present(room, r))
   }
   const s = readSettings()
-  return { me: slake.me, rooms: rooms(), records, themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme) }
+  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme), version: versionInfo() }
 }
 
 app.whenReady().then(async () => {
@@ -206,7 +227,17 @@ app.whenReady().then(async () => {
   slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data') })
   await slake.start()
 
-  slake.on('rooms', () => send('rooms', rooms()))
+  slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]) })
+  slake.on('dm', (id) => {
+    const room = slake.rooms.get(id)
+    if (!room) return
+    send('rooms', rooms())
+    if (win && !(win.isVisible() && win.isFocused()) && Notification.isSupported()) {
+      const n = new Notification({ title: 'Slake', body: `${room.ownerName} started a conversation with you` })
+      n.on('click', showWindow)
+      n.show()
+    }
+  })
   slake.on('knocked', (roomId, name) => {
     const room = slake.rooms.get(roomId)
     send('knocked', { room: roomId, name, title: room ? room.title : '' })
@@ -264,6 +295,7 @@ app.whenReady().then(async () => {
   handle('post', ({ room, text }) => { slake.post(room, text) })
   handle('copyInvite', (room) => clipboard.writeText(slake.invite(room)))
   handle('inviteCode', (room) => slake.inviteCode(room))
+  handle('messagePerson', ({ key, name }) => slake.messagePerson(key, name))
   handle('joinWithCode', (code) => slake.joinWithCode(code))
   handle('removeMember', ({ room, key }) => slake.removeMember(room, key))
   handle('leaveRoom', (room) => slake.leaveRoom(room))

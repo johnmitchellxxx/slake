@@ -31,6 +31,8 @@ language, keep the window clean and minimal, keep it hackable.
 - **Short codes**: 5 chars, 15 minutes, owner must be online. Joiner proves
   the code; owner seals the full invite to them. Slow-hashed meeting point.
   Fine for a small group; strengthen as it grows.
+- Presence: peers sign their identity into each connection's hello, so
+  `onlineIn(room)` knows exactly who's on.
 - Names: the emoji pair (from the key) is hidden unless two people share a
   name. Whoever took the name second is asked to rename.
 
@@ -56,4 +58,5 @@ before tagging: releases are public.
   machines see your rooms. Planned for when there are more than ~5 users.
 - Plugins: only from the user's own plugins folder, never run from chat.
 - Phone app comes after login + device sync.
-- Friends + DMs (a DM is a two-person room).
+- Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
+  invite is sealed to the other person and delivered once you're connected.)

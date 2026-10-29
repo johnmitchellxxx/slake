@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('slake', {
   post: (room, text) => call('post', { room, text }),
   copyInvite: (room) => call('copyInvite', room),
   inviteCode: (room) => call('inviteCode', room),
+  messagePerson: (key, name) => call('messagePerson', { key, name }),
+  onOnline: (fn) => ipcRenderer.on('online', (_e, list) => fn(list)),
   joinWithCode: (code) => call('joinWithCode', code),
   onKnocked: (fn) => ipcRenderer.on('knocked', (_e, x) => fn(x)),
   removeMember: (room, key) => call('removeMember', { room, key }),

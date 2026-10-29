@@ -99,6 +99,26 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   console.log('✓ A wrong code gets no answer')
   await ana.stop()
 
+  // Who's online: John can see Sam and Bob are on in NewProject.
+  await until(() => john.onlineIn(project).length === 2, 'John sees two people online in NewProject')
+  assert.ok(john.onlineIn(project).includes(sam.me.publicKey))
+  console.log("✓ John sees exactly who's online in NewProject")
+
+  // DMs: John messages Sam directly; it shows up for Sam, and Bob never sees it.
+  const dm = await john.messagePerson(sam.me.publicKey, 'Sam')
+  await until(() => sam.rooms.has(dm), 'Sam receives the DM')
+  assert.strictEqual(sam.rooms.get(dm).dm, true)
+  assert.strictEqual(sam.rooms.get(dm).peer, john.me.publicKey)
+  assert.strictEqual(await john.messagePerson(sam.me.publicKey, 'Sam'), dm)
+  john.post(dm, 'just between us')
+  await until(() => texts(sam, dm).includes('just between us'), 'Sam reads the DM')
+  sam.post(dm, 'got it')
+  await until(() => texts(john, dm).includes('got it'), 'John reads the reply')
+  await wait(1000)
+  assert.strictEqual(bob.rooms.has(dm), false)
+  assert.throws(() => john.invite(dm), /just the two of you/)
+  console.log('✓ John DMed Sam; only the two of them have it')
+
   // Bob's own space: he makes a room and invites John.
   const garage = await bob.createRoom('bobs-garage')
   await john.joinRoom(bob.invite(garage))
@@ -139,7 +159,8 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   await sam.stop()
   const sam2 = new Slake({ dataDir: path.join(tmp, 'Sam'), makeSwarm })
   await sam2.start()
-  assert.strictEqual(sam2.rooms.size, 2)
+  assert.strictEqual(sam2.rooms.size, 3)  // NewProject, party, and his DM with John
+  assert.strictEqual(sam2.rooms.get(dm).dm, true)
   assert.strictEqual(sam2.rooms.get(project).epoch, 1)
   assert.ok(texts(sam2, project).includes('secret plans after bob left'))
   console.log('✓ Sam kept his rooms, keys and history after restarting')

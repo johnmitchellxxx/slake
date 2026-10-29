@@ -133,6 +133,13 @@ at the top, and save — the app repaints instantly. Included:
 Themes can restyle anything, not just colors. Look at `necklace.css` for an
 example that draws its own decoration.
 
+**Who's online.** A green dot on someone's picture means their Slake is
+connected right now. Each room's header lists who's on.
+
+**Direct messages.** Right-click anyone and choose **Message [name]**. DMs
+live in their own section below your rooms. A DM is a private two-person
+room; it reaches the other person the moment you're both online.
+
 **Invite with a code.** Right-click a room you own and choose **Invite with a
 code…** for a 5-character code like `K7Q2M`. Anyone who types it in the join
 box gets in, for 15 minutes, while your Slake is running.

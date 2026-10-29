@@ -60,7 +60,7 @@ function validAvatar (a) {
 
 function validBody (kind, b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return false
-  if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40
+  if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40 && (b.dm === undefined || b.dm === true)
   if (kind === 'join') return Object.keys(b).length === 0
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
   if (kind === 'profile') return validAvatar(b.avatar)
@@ -173,6 +173,7 @@ function openBytes (box, curve) {
 function makeInvite (room) {
   const e = room.epoch
   const payload = { v: 2, r: room.id, t: room.title, o: room.owner, n: room.ownerName, e, k: room.keys[e] }
+  if (room.dm) payload.d = 1
   return 'slake:' + Buffer.from(JSON.stringify(payload)).toString('base64url')
 }
 
@@ -184,7 +185,7 @@ function parseInvite (str) {
     if (p.v !== 2 || !ID_RE.test(p.r) || !KEY_RE.test(p.o) || !KEY_RE.test(p.k) || !isInt(p.e)) return null
     const title = String(p.t || 'room').slice(0, 40) || 'room'
     const ownerName = String(p.n || 'Someone').slice(0, 40) || 'Someone'
-    return { id: p.r, title, owner: p.o, ownerName, epoch: p.e, key: p.k }
+    return { id: p.r, title, owner: p.o, ownerName, epoch: p.e, key: p.k, dm: p.d === 1 }
   } catch { return null }
 }
 
@@ -284,6 +285,8 @@ class Slake extends EventEmitter {
       ownerName: meta.ownerName,
       keys: meta.keys || {},
       removed: !!meta.removed,
+      dm: !!meta.dm,
+      peer: meta.peer || null,
       records: new Map()
     }
     room.epoch = Math.max(...Object.keys(room.keys).map(Number))
@@ -300,8 +303,8 @@ class Slake extends EventEmitter {
   }
 
   _saveRoom (room) {
-    const { id, title, owner, ownerName, keys, removed } = room
-    this._writeJSON(path.join(this.roomsDir, id + '.json'), { id, title, owner, ownerName, keys, removed }, 0o600)
+    const { id, title, owner, ownerName, keys, removed, dm, peer } = room
+    this._writeJSON(path.join(this.roomsDir, id + '.json'), { id, title, owner, ownerName, keys, removed, dm: !!dm, peer: peer || null }, 0o600)
   }
 
   _indexKeys (room) {
@@ -419,7 +422,7 @@ class Slake extends EventEmitter {
     let room = this.rooms.get(inv.id)
     if (room && !room.removed && room.epoch >= inv.epoch) throw new Error("You're already in that room")
     if (!room) {
-      room = { id: inv.id, title: inv.title, owner: inv.owner, ownerName: inv.ownerName, keys: {}, epoch: inv.epoch, removed: false, records: new Map() }
+      room = { id: inv.id, title: inv.title, owner: inv.owner, ownerName: inv.ownerName, keys: {}, epoch: inv.epoch, removed: false, records: new Map(), dm: inv.dm, peer: inv.dm ? inv.owner : null }
       this.rooms.set(room.id, room)
     }
     room.keys[inv.epoch] = inv.key
@@ -440,6 +443,7 @@ class Slake extends EventEmitter {
   invite (roomId) {
     const room = this._room(roomId)
     if (room.owner !== this.identity.publicKey) throw new Error('Only the owner can invite people')
+    if (room.dm) throw new Error('Direct messages are just the two of you')
     return makeInvite(room)
   }
 
@@ -478,6 +482,7 @@ class Slake extends EventEmitter {
   async inviteCode (roomId) {
     const room = this._room(roomId)
     if (room.owner !== this.identity.publicKey) throw new Error('Only the owner can invite people')
+    if (room.dm) throw new Error('Direct messages are just the two of you')
     const code = newCode()
     const seed = codeSeed(code)
     const label = hmac(seed, 'slake-knock-label').toString('hex')
@@ -555,10 +560,109 @@ class Slake extends EventEmitter {
     this.joinRoom(invite, { waitForNetwork: false }).then((id) => k.done(null, id), (e) => k.done(e))
   }
 
+  // ---------- Who's online ----------
+
+  _onIdentity (peer, me) {
+    if (!me || typeof me.k !== 'string' || !KEY_RE.test(me.k) || typeof me.s !== 'string' || !SIG_RE.test(me.s)) return
+    if (peer.identity === me.k) return
+    const tag = Buffer.concat([peer.conn.handshakeHash, Buffer.from(peer.conn.isInitiator ? 'R-id' : 'I-id')])
+    if (!hc.verify(tag, Buffer.from(me.s, 'hex'), Buffer.from(me.k, 'hex'))) return
+    peer.identity = me.k
+    peer.name = String(me.n || '').slice(0, 40)
+    this._deliverDMs(peer)
+    this.emit('rooms')
+  }
+
+  // Everyone whose Slake we're connected to right now (by identity key).
+  onlineKeys () {
+    const out = new Set()
+    for (const p of this.peers) if (p.identity) out.add(p.identity)
+    return out
+  }
+
+  // Who in this room is online right now (besides you).
+  onlineIn (roomId) {
+    const room = this.rooms.get(roomId)
+    if (!room || room.removed) return []
+    const out = new Set()
+    for (const p of this.peers) if (p.identity && p.proven.has(roomId) && p.proven.get(roomId) >= room.epoch) out.add(p.identity)
+    out.delete(this.identity.publicKey)
+    return [...out]
+  }
+
+  // ---------- Direct messages ----------
+  // A DM is a private two-person room. The one who starts it owns it, and
+  // the invite goes straight to the other person's Slake, sealed to them, as
+  // soon as the two of you are connected (now, or the next time you both are).
+
+  _dmWith (key) {
+    for (const r of this.rooms.values()) if (r.dm && r.peer === key && !r.removed) return r
+    return null
+  }
+
+  async messagePerson (key, name) {
+    this._needName()
+    if (!KEY_RE.test(String(key)) || key === this.identity.publicKey) throw new Error("Can't message that person")
+    const existing = this._dmWith(key)
+    if (existing) return existing.id
+    const id = hc.randomBytes(16).toString('hex')
+    const room = {
+      id, title: String(name || 'Someone').slice(0, 40) || 'Someone', owner: this.identity.publicKey, ownerName: this.identity.name,
+      keys: { 0: hc.randomBytes(32).toString('hex') }, epoch: 0, removed: false, records: new Map(), dm: true, peer: key
+    }
+    this.rooms.set(id, room)
+    this._saveRoom(room)
+    this._indexKeys(room)
+    this._publish(room, this._sign(room, 'room', 0, { title: 'dm', dm: true }))
+    this._shareAvatar(room)
+    this._joinTopics(room).catch(() => {})
+    this._pendingDMs().add(id)
+    this._savePendingDMs()
+    for (const p of this.peers) this._deliverDMs(p)
+    this._announce()
+    this.emit('rooms')
+    return id
+  }
+
+  _pendingDMs () {
+    if (!this._pending) this._pending = new Set(this._readJSON(this._file('pending-dms.json')) || [])
+    return this._pending
+  }
+
+  _savePendingDMs () { this._writeJSON(this._file('pending-dms.json'), [...this._pendingDMs()]) }
+
+  _deliverDMs (peer) {
+    if (!peer.identity) return
+    for (const id of this._pendingDMs()) {
+      const room = this.rooms.get(id)
+      if (!room || !room.dm || room.peer !== peer.identity) continue
+      const box = sealBytes(peer.identity, Buffer.from(makeInvite(room)))
+      this._send(peer, { type: 'dm', box: box.toString('base64') })
+    }
+  }
+
+  _onDM (peer, msg) {
+    if (!peer.identity) return
+    const raw = openBytes(Buffer.from(String(msg.box || ''), 'base64'), this.curve)
+    const inv = raw && parseInvite(raw.toString('utf8'))
+    // Only accept a DM whose owner is the very person who handed it to us.
+    if (!inv || !inv.dm || inv.owner !== peer.identity) return
+    this._send(peer, { type: 'dm-ok', room: inv.id })
+    if (this.rooms.has(inv.id)) return
+    this.joinRoom(raw.toString('utf8'), { waitForNetwork: false }).then(() => this.emit('dm', inv.id), () => {})
+  }
+
+  _onDMOk (peer, msg) {
+    const room = this.rooms.get(String(msg.room || ''))
+    if (!room || !room.dm || room.peer !== peer.identity) return
+    if (this._pendingDMs().delete(room.id)) this._savePendingDMs()
+  }
+
   // Take a room off your sidebar. History is renamed aside, not deleted.
   async leaveRoom (roomId) {
     const room = this._room(roomId)
-    if (room.owner === this.identity.publicKey) throw new Error("You own this room, so it stays in your space")
+    if (room.owner === this.identity.publicKey && !room.dm) throw new Error("You own this room, so it stays in your space")
+    if (room.dm && this._pendingDMs().delete(roomId)) this._savePendingDMs()
     await this._leaveTopics(room)
     this._unindexKeys(room)
     this.rooms.delete(roomId)
@@ -642,7 +746,10 @@ class Slake extends EventEmitter {
       if (!room || room.removed) continue
       entries.push({ l: label, p: this._proof(peer.conn, v.key, peer.conn.isInitiator).toString('hex') })
     }
-    this._send(peer, { type: 'hello', entries })
+    // Say who we are, signed for this one connection so it can't be replayed.
+    const tag = Buffer.concat([peer.conn.handshakeHash, Buffer.from(peer.conn.isInitiator ? 'I-id' : 'R-id')])
+    const me = { k: this.identity.publicKey, n: this.identity.name || '', s: hc.sign(tag, Buffer.from(this.identity.secretKey, 'hex')).toString('hex') }
+    this._send(peer, { type: 'hello', entries, me })
   }
 
   _announce () { for (const p of this.peers) this._hello(p) }
@@ -685,6 +792,7 @@ class Slake extends EventEmitter {
 
   _onMessage (peer, msg) {
     if (msg.type === 'hello' && Array.isArray(msg.entries)) {
+      this._onIdentity(peer, msg.me)
       const changed = new Set()
       for (const ent of msg.entries.slice(0, 4096)) {
         const v = this.keyIndex.get(String(ent && ent.l))
@@ -710,6 +818,8 @@ class Slake extends EventEmitter {
     }
 
     if (msg.type === 'knock') { this._onKnock(peer, msg); return }
+    if (msg.type === 'dm') { this._onDM(peer, msg); return }
+    if (msg.type === 'dm-ok') { this._onDMOk(peer, msg); return }
     if (msg.type === 'welcome') { this._onWelcome(peer, msg); return }
 
     const room = this.rooms.get(msg.room)
