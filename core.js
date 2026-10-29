@@ -21,7 +21,8 @@ const { EventEmitter } = require('events')
 const MAX_TEXT = 4000
 const MAX_LINE = 8 * 1024 * 1024
 const MAX_MEMBERS = 256
-const KINDS = new Set(['room', 'join', 'msg', 'rekey', 'file'])
+const KINDS = new Set(['room', 'join', 'msg', 'rekey', 'file', 'profile'])
+const MAX_AVATAR = 60000  // a small photo, as text
 
 // Files are fleeting: they always vanish after one of these.
 const HOUR = 3600 * 1000
@@ -46,11 +47,23 @@ function recordId (r) {
   return nodeCrypto.createHash('sha256').update(signable(r)).update(r.sig).digest('hex')
 }
 
+// An avatar is nothing (use the default), one emoji, or a small photo.
+function validAvatar (a) {
+  if (a === null) return true
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return false
+  const keys = Object.keys(a)
+  if (keys.length !== 1) return false
+  if (keys[0] === 'emoji') return typeof a.emoji === 'string' && a.emoji.length >= 1 && a.emoji.length <= 16 && !/[<>]/.test(a.emoji)
+  if (keys[0] === 'image') return typeof a.image === 'string' && a.image.length <= MAX_AVATAR && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(a.image)
+  return false
+}
+
 function validBody (kind, b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return false
   if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40
   if (kind === 'join') return Object.keys(b).length === 0
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
+  if (kind === 'profile') return validAvatar(b.avatar)
   if (kind === 'file') {
     return typeof b.fid === 'string' && KEY_RE.test(b.fid) &&
       typeof b.fname === 'string' && b.fname.length >= 1 && b.fname.length <= 200 && !/[\\/\0]/.test(b.fname) &&
@@ -190,7 +203,20 @@ class Slake extends EventEmitter {
     if (this.swarm) await this.swarm.destroy()
   }
 
-  get me () { return { publicKey: this.identity.publicKey, name: this.identity.name } }
+  get me () { return { publicKey: this.identity.publicKey, name: this.identity.name, avatar: this.identity.avatar || null } }
+
+  // Change your picture everywhere: a signed note in every room you're in.
+  setAvatar (avatar) {
+    this._needName()
+    if (!validAvatar(avatar)) throw new Error("That picture won't work. Try a smaller photo or a single emoji.")
+    this.identity.avatar = avatar
+    this._writeJSON(this._file('identity.json'), this.identity, 0o600)
+    for (const room of this.rooms.values()) if (!room.removed) this._publish(room, this._sign(room, 'profile', room.epoch, { avatar }))
+  }
+
+  _shareAvatar (room) {
+    if (this.identity.avatar) this._publish(room, this._sign(room, 'profile', room.epoch, { avatar: this.identity.avatar }))
+  }
 
   setName (name) {
     name = String(name || '').trim().slice(0, 40)
@@ -285,13 +311,13 @@ class Slake extends EventEmitter {
     const e = room.epoch
     const names = new Map()
     for (const r of [...room.records.values()].sort((a, b) => a.ts - b.ts)) {
-      if (r.kind === 'join' || r.kind === 'msg' || r.kind === 'file' || r.kind === 'room') names.set(r.author, r.name)
+      if (r.kind !== 'rekey') names.set(r.author, r.name)
     }
     const set = new Set([room.owner])
     const rk = this._rekeyTo(room, e)
     if (rk) for (const k of rk.body.members) set.add(k)
     for (const r of room.records.values()) {
-      if ((r.kind === 'join' || r.kind === 'msg' || r.kind === 'file') && r.epoch === e) set.add(r.author)
+      if ((r.kind === 'join' || r.kind === 'msg' || r.kind === 'file' || r.kind === 'profile') && r.epoch === e) set.add(r.author)
     }
     return [...set].map((key) => ({
       key,
@@ -327,6 +353,7 @@ class Slake extends EventEmitter {
     this._saveRoom(room)
     this._indexKeys(room)
     this._publish(room, this._sign(room, 'room', 0, { title }))
+    this._shareAvatar(room)
     const joining = this._joinTopics(room)
     this._announce()
     this.emit('rooms')
@@ -352,6 +379,7 @@ class Slake extends EventEmitter {
     this._saveRoom(room)
     this._indexKeys(room)
     this._publish(room, this._sign(room, 'join', inv.epoch, {}))
+    this._shareAvatar(room)
     const joining = this._joinTopics(room)
     this._announce()
     this.emit('rooms')

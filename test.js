@@ -45,6 +45,13 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   assert.strictEqual(bob.rooms.has(party), false)
   console.log('✓ Party messages reach John but never Bob')
 
+  // John picks a picture; it reaches people in his rooms, signed by him.
+  john.setAvatar({ emoji: '🎛️' })
+  const latestAvatar = (x, roomId, who) => [...x.rooms.get(roomId).records.values()].filter((r) => r.kind === 'profile' && r.author === who).sort((a, b) => b.ts - a.ts)[0]
+  await until(() => { const r = latestAvatar(sam, party, john.me.publicKey); return r && r.body.avatar.emoji === '🎛️' }, 'Sam sees John\'s new picture')
+  assert.throws(() => john.setAvatar({ image: 'data:text/html;base64,AAAA' }), /picture won't work/)
+  console.log("✓ John's new picture reached Sam; bad pictures refused")
+
   // Members can talk; non-owners can't invite.
   bob.post(project, 'hi from bob')
   await until(() => texts(sam, project).includes('hi from bob'), 'Sam gets Bob message')

@@ -27,6 +27,42 @@ const el = (tag, cls, text) => {
   return e
 }
 
+// ---------- Avatars ----------
+// Someone's picture is the newest signed "profile" note they've posted in any
+// room you share. With none, it's a color and emoji made from their key.
+let avatars = new Map()
+function rebuildAvatars () {
+  const latest = new Map()
+  for (const list of Object.values(records)) {
+    for (const r of list) {
+      if (r.kind !== 'profile') continue
+      const cur = latest.get(r.author)
+      if (!cur || r.ts > cur.ts) latest.set(r.author, r)
+    }
+  }
+  avatars = new Map([...latest].map(([k, r]) => [k, r.avatar]))
+  if (me) avatars.set(me.publicKey, me.avatar || null)
+}
+
+function avatarEl (key, small) {
+  const a = avatars.get(key)
+  const node = el('div', 'avatar' + (small ? ' sm' : ''))
+  if (a && a.image) {
+    const img = el('img')
+    img.src = a.image
+    img.alt = ''
+    node.append(img)
+  } else if (a && a.emoji) {
+    node.classList.add('emoji')
+    node.textContent = a.emoji
+  } else {
+    const b = badge(key)
+    node.style.background = b.color
+    node.textContent = [...b.emoji][0]
+  }
+  return node
+}
+
 function toast (text) {
   const t = $('toast')
   t.textContent = text
@@ -62,7 +98,9 @@ function roomItem (r) {
 function renderSidebar () {
   const b = badge(me.publicKey)
   $('meLine').textContent = ''
-  $('meLine').append(document.createTextNode(b.emoji + ' '), el('b', null, me.name))
+  const who = el('span')
+  who.append(el('b', null, me.name), document.createTextNode(' ' + b.emoji))
+  $('meLine').append(avatarEl(me.publicKey, true), who)
 
   const nav = $('spaces')
   nav.textContent = ''
@@ -159,7 +197,7 @@ function renderMembers (r) {
     const li = el('li')
     li.dataset.person = m.key
     li.dataset.name = m.name
-    li.append(el('span', 'badge', badge(m.key).emoji), el('span', 'who', m.name))
+    li.append(avatarEl(m.key, true), el('span', 'who', m.name), el('span', 'badge', badge(m.key).emoji))
     if (m.owner) li.append(el('span', 'tag', 'owner'))
     list.append(li)
   }
@@ -200,6 +238,7 @@ function renderMessages () {
   let prev = null
   let prevDay = null
   for (const m of list) {
+    if (m.kind === 'profile') continue
     if (fmtDay(m.ts) !== prevDay) {
       box.append(el('div', 'day', fmtDay(m.ts)))
       prevDay = fmtDay(m.ts)
@@ -216,8 +255,7 @@ function renderMessages () {
     row.dataset.person = m.author
     row.dataset.name = m.name
     const b = badge(m.author)
-    const av = el('div', 'avatar', [...b.emoji][0])
-    av.style.background = b.color
+    const av = avatarEl(m.author)
     const meta = el('div', 'meta')
     const bd = el('span', 'badge', b.emoji)
     bd.title = 'Identity check: the same person always has the same pair'
@@ -423,6 +461,7 @@ $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') cl
 $('searchClose').onclick = closeSearch
 document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !$('chat').hidden) { e.preventDefault(); openSearch() }
+  if (e.key === 'Escape' && !$('avatarPicker').hidden) $('avatarPicker').hidden = true
   if (e.key === 'Escape' && searching) closeSearch()
   else if (e.key === 'Escape' && membersOpen) closeMembers()
 })
@@ -588,6 +627,38 @@ function renderThemes (themes, theme) {
 $('themesBtn').onclick = () => s.openThemes()
 $('themeSelect').onchange = async (e) => applyTheme((await s.setTheme(e.target.value)).css)
 
+// ---------- Your picture ----------
+const EMOJI_CHOICES = ['😎', '🦊', '🐙', '🦉', '🐝', '🌵', '🍄', '🔥', '🌊', '🌙', '⚡', '🎧',
+  '🎛️', '🎤', '🎬', '🎸', '🚀', '🪐', '🦄', '🐳', '🌻', '🍉', '🍕', '👾']
+for (const e of EMOJI_CHOICES) {
+  const btn = el('button', null, e)
+  btn.type = 'button'
+  btn.onclick = () => setAvatar({ emoji: e })
+  $('emojiGrid').append(btn)
+}
+
+async function setAvatar (a) {
+  try {
+    await s.setAvatar(a)
+    me.avatar = a
+    rebuildAvatars()
+    $('avatarPicker').hidden = true
+    renderAll()
+  } catch (e) { toast(e.message) }
+}
+
+$('meLine').onclick = () => { $('avatarPicker').hidden = !$('avatarPicker').hidden }
+$('pickerClose').onclick = () => { $('avatarPicker').hidden = true }
+$('pickPhoto').onclick = async () => {
+  try { const img = await s.pickImage(); if (img) await setAvatar({ image: img }) } catch (e) { toast(e.message) }
+}
+$('pickDefault').onclick = () => setAvatar(null)
+$('emojiForm').onsubmit = (e) => {
+  e.preventDefault()
+  const v = $('emojiInput').value.trim()
+  if (v) { $('emojiInput').value = ''; setAvatar({ emoji: v }) }
+}
+
 // ---------- New version note ----------
 function showUpdate (u) {
   const b = $('updateBanner')
@@ -606,6 +677,7 @@ s.onRecord((r) => {
   if (records[r.room].some((x) => x.id === r.id)) return
   records[r.room].push(r)
   records[r.room].sort((a, b) => a.ts - b.ts)
+  if (r.kind === 'profile') { rebuildAvatars(); renderAll(); return }
   if (r.room !== current && (r.kind === 'msg' || r.kind === 'file')) unread.add(r.room)
   renderSidebar()
   if (r.room === current) renderMessages()
@@ -627,6 +699,7 @@ async function refresh () {
   me = st.me
   rooms = st.rooms
   records = st.records
+  rebuildAvatars()
   applyTheme(st.themeCSS)
   renderThemes(st.themes, st.theme)
   if (!me.name) {

@@ -27,8 +27,23 @@
     <aside class="sidebar">
       <header class="brand">
         <div class="wordmark small">slake</div>
-        <div id="meLine" class="me-line"></div>
+        <button id="meLine" class="me-line" title="Change your picture"></button>
       </header>
+
+      <div id="avatarPicker" class="picker" hidden>
+        <div class="picker-head">
+          <span>Your picture</span>
+          <button id="pickerClose" class="ghost" aria-label="Close">✕</button>
+        </div>
+        <button id="pickPhoto" class="secondary full">Choose a photo…</button>
+        <div id="emojiGrid" class="emoji-grid"></div>
+        <form id="emojiForm" class="emoji-form">
+          <input id="emojiInput" maxlength="16" autocomplete="off" placeholder="Or type any emoji">
+          <button type="submit" class="secondary">Use</button>
+        </form>
+        <button id="pickDefault" class="ghost full">Back to the default</button>
+        <p class="hint">Everyone in your rooms sees it. The little emoji pair after your name stays the same: it comes from your identity, so impostors can't copy it.</p>
+      </div>
 
       <nav id="spaces"></nav>
 

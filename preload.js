@@ -11,6 +11,8 @@ const call = async (name, arg) => {
 contextBridge.exposeInMainWorld('slake', {
   state: () => call('state'),
   setName: (n) => call('setName', n),
+  setAvatar: (a) => call('setAvatar', a),
+  pickImage: () => call('pickImage'),
   createRoom: (title) => call('createRoom', title),
   joinRoom: (invite) => call('joinRoom', invite),
   post: (room, text) => call('post', { room, text }),

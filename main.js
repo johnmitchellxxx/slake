@@ -146,6 +146,7 @@ function send (channel, data) {
 function present (room, r) {
   const out = { id: r.id, room: r.room, kind: r.kind, author: r.author, name: r.name, ts: r.ts }
   if (r.kind === 'msg') out.text = r.body.text
+  if (r.kind === 'profile') out.avatar = r.body.avatar
   if (r.kind === 'file') {
     Object.assign(out, { fid: r.body.fid, fname: r.body.fname, size: r.body.size, ttl: r.body.ttl, status: slake.fileStatus(r) })
   }
@@ -229,6 +230,18 @@ app.whenReady().then(async () => {
   handle('update', () => update)
   handle('openUpdate', () => { if (update) shell.openExternal(update.url) })
   handle('setName', (n) => slake.setName(n))
+  handle('setAvatar', (a) => slake.setAvatar(a))
+  handle('pickImage', async () => {
+    const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic'] }] })
+    if (r.canceled || !r.filePaths[0]) return null
+    // Shrink to a small square here, so it's tiny to send around.
+    const img = nativeImage.createFromPath(r.filePaths[0])
+    if (img.isEmpty()) throw new Error("Couldn't read that picture")
+    const { width, height } = img.getSize()
+    const side = Math.min(width, height)
+    const square = img.crop({ x: Math.floor((width - side) / 2), y: Math.floor((height - side) / 2), width: side, height: side })
+    return 'data:image/jpeg;base64,' + square.resize({ width: 128, height: 128, quality: 'best' }).toJPEG(82).toString('base64')
+  })
   handle('createRoom', (title) => slake.createRoom(title, { waitForNetwork: false }))
   handle('joinRoom', (inv) => slake.joinRoom(inv, { waitForNetwork: false }))
   handle('post', ({ room, text }) => { slake.post(room, text) })
