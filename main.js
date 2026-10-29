@@ -178,7 +178,7 @@ function roomInfo (room) {
   }
 }
 
-function rooms () { return [...slake.rooms.values()].map(roomInfo) }
+function rooms () { return slake ? [...slake.rooms.values()].map(roomInfo) : [] }
 
 function state () {
   const records = {}
@@ -369,6 +369,8 @@ app.on('will-quit', async (e) => {
   if (!slake) return
   e.preventDefault()
   const s = slake
+  // Stop listening first, so hanging up connections can't poke a closing window.
+  s.removeAllListeners()
   slake = null
   try { await s.stop() } catch {}
   app.exit(0)
