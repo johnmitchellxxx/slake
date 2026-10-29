@@ -58,6 +58,7 @@ before tagging: releases are public.
 
 - Login (name + password = identity) and device sync, so phones and second
   machines see your rooms. Planned for when there are more than ~5 users.
+- **Next up: a theme builder** (make and tweak themes inside Slake).
 - Plugins: only from the user's own plugins folder, never run from chat.
 - Phone app comes after login + device sync.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
