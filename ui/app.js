@@ -230,6 +230,29 @@ $('newChannel').onsubmit = (e) => {
 
 $('inviteBtn').onclick = async () => { await g.copyInvite(); toast('Invite copied. Only share it with people you trust.') }
 $('themesBtn').onclick = () => g.openThemes()
+
+// Two clicks to leave, so nobody leaves by accident.
+$('leaveBtn').onclick = async () => {
+  const b = $('leaveBtn')
+  if (!b.classList.contains('confirm')) {
+    b.classList.add('confirm')
+    b.textContent = 'Click again to leave'
+    clearTimeout(b.timer)
+    b.timer = setTimeout(() => { b.classList.remove('confirm'); b.textContent = 'Leave group' }, 4000)
+    return
+  }
+  clearTimeout(b.timer)
+  b.classList.remove('confirm')
+  b.textContent = 'Leave group'
+  try {
+    await g.leaveGroup()
+    current = 'general'
+    unread.clear()
+    extraChannels.clear()
+    extraChannels.add('general')
+    await refresh()
+  } catch (err) { toast(err.message) }
+}
 $('themeSelect').onchange = async (e) => {
   const r = await g.setTheme(e.target.value)
   applyTheme(r.css)

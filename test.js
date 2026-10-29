@@ -67,6 +67,14 @@ async function until (fn, label, ms = 20000) {
   assert.strictEqual(bob2.me.name, 'Bob')
   console.log('✓ Bob kept his identity and history after restarting')
 
+  // Leaving a group lets you join a different one; old history is kept aside.
+  await bob2.leaveGroup()
+  assert.strictEqual(bob2.group, null)
+  assert.strictEqual(bob2.messages.size, 0)
+  await bob2.joinGroup(alice.invite)
+  await until(() => bob2.messages.size === 2, 'Bob rejoins and catches up')
+  console.log('✓ Bob left, rejoined with an invite, and caught up again')
+
   await Promise.all([alice.stop(), bob2.stop(), mallory.stop()])
   await testnet.destroy()
   console.log('\nAll good.')

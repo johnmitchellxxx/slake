@@ -130,6 +130,23 @@ class Slake extends EventEmitter {
     await this._join()
   }
 
+  // Leave the current group. Nothing is deleted: the old group file and its
+  // history are renamed with a timestamp so they can be recovered by hand.
+  async leaveGroup () {
+    if (!this.group) return
+    if (this.swarm) await this.swarm.destroy()
+    this.swarm = null
+    this.peers.clear()
+    this.emit('peers', 0)
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    for (const f of ['group.json', 'messages.ndjson']) {
+      const from = this._file(f)
+      if (fs.existsSync(from)) fs.renameSync(from, this._file(`left-${stamp}-${f}`))
+    }
+    this.group = null
+    this.messages.clear()
+  }
+
   get invite () {
     return this.group ? makeInvite(this.group.name, this.group.secret) : null
   }

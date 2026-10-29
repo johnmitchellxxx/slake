@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('slake', {
   joinGroup: (inv) => call('joinGroup', inv),
   post: (channel, text) => call('post', { channel, text }),
   copyInvite: () => call('copyInvite'),
+  leaveGroup: () => call('leaveGroup'),
   openThemes: () => call('openThemes'),
   setTheme: (t) => call('setTheme', t),
   onMessage: (fn) => ipcRenderer.on('message', (_e, m) => fn(m)),

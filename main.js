@@ -83,6 +83,7 @@ app.whenReady().then(async () => {
   handle('createGroup', (n) => slake.createGroup(n))
   handle('joinGroup', (inv) => slake.joinGroup(inv))
   handle('post', ({ channel, text }) => slake.post(channel, text))
+  handle('leaveGroup', () => slake.leaveGroup())
   handle('copyInvite', () => clipboard.writeText(slake.invite || ''))
   handle('openThemes', () => shell.openPath(themesDir()))
   handle('setTheme', (t) => {
