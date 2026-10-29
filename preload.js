@@ -32,5 +32,8 @@ contextBridge.exposeInMainWorld('slake', {
   setTheme: (t) => call('setTheme', t),
   onRecord: (fn) => ipcRenderer.on('record', (_e, r) => fn(r)),
   onRooms: (fn) => ipcRenderer.on('rooms', (_e, list) => fn(list)),
-  onTheme: (fn) => ipcRenderer.on('theme', (_e, t) => fn(t))
+  onTheme: (fn) => ipcRenderer.on('theme', (_e, t) => fn(t)),
+  update: () => call('update'),
+  openUpdate: () => call('openUpdate'),
+  onUpdate: (fn) => ipcRenderer.on('update', (_e, u) => fn(u))
 })

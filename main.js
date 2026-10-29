@@ -1,6 +1,6 @@
 // The desktop app wrapper: opens the window and hands things back and forth
 // between the engine (core.js) and the screen.
-const { app, BrowserWindow, ipcMain, Notification, shell, clipboard, Menu, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, Notification, shell, clipboard, Menu, dialog, Tray, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { Slake } = require('./core')
@@ -8,9 +8,109 @@ const { Slake } = require('./core')
 // `npm run second` gives you a separate person on the same computer, for testing.
 const profile = (process.argv.find((a) => a.startsWith('--profile=')) || '').split('=')[1]
 if (profile) app.setPath('userData', path.join(app.getPath('appData'), 'Slake-' + profile))
+app.setName(profile ? `Slake (${profile})` : 'Slake')
+
+// Only one Slake per person. Opening it again just brings the window back.
+if (!app.requestSingleInstanceLock()) app.exit(0)
+app.on('second-instance', () => showWindow())
 
 let win
 let slake
+let tray
+let quitting = false
+let unreadCount = 0
+const isMac = process.platform === 'darwin'
+
+// ---------- Menu bar ----------
+// Closing the window doesn't quit: Slake tucks into the menu bar (the system
+// tray on Windows) so you stay online, keep getting messages, and others can
+// still fetch files you've shared.
+
+function showWindow () {
+  if (!win) return
+  if (isMac && app.dock) app.dock.show()
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+function hideWindow () {
+  if (!win) return
+  win.hide()
+  if (isMac && app.dock) app.dock.hide()
+}
+
+function setUnread (n) {
+  unreadCount = n
+  if (tray) {
+    if (isMac) tray.setTitle(n ? ` ${n}` : '')
+    tray.setToolTip(n ? `Slake: ${n} new` : 'Slake')
+  }
+  if (isMac && app.dock) app.dock.setBadge(n ? String(n) : '')
+  buildTrayMenu()
+}
+
+function buildTrayMenu () {
+  if (!tray) return
+  const login = app.getLoginItemSettings().openAtLogin
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: unreadCount ? `Open Slake (${unreadCount} new)` : 'Open Slake', click: showWindow },
+    ...(update ? [{ label: `Get Slake ${update.version}…`, click: () => shell.openExternal(update.url) }] : []),
+    { type: 'separator' },
+    {
+      label: 'Open at login',
+      type: 'checkbox',
+      checked: login,
+      click: (item) => { app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true }); buildTrayMenu() }
+    },
+    { type: 'separator' },
+    { label: 'Quit Slake', click: () => { quitting = true; app.quit() } }
+  ]))
+}
+
+// ---------- Updates ----------
+// Every launch (and every 6 hours while Slake sits in the menu bar), ask
+// GitHub what the newest release is. If it's newer, show a small note.
+const RELEASES = 'https://api.github.com/repos/johnmitchellxxx/slake/releases/latest'
+let update = null
+
+function newer (a, b) {
+  const pa = String(a).split('.').map(Number)
+  const pb = String(b).split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return true
+    if ((pa[i] || 0) < (pb[i] || 0)) return false
+  }
+  return false
+}
+
+async function checkForUpdate () {
+  try {
+    const res = await fetch(RELEASES, { headers: { 'User-Agent': 'Slake', Accept: 'application/vnd.github+json' } })
+    if (!res.ok) return
+    const j = await res.json()
+    const version = String(j.tag_name || '').replace(/^v/, '')
+    const url = String(j.html_url || '')
+    if (!/^\d+\.\d+\.\d+$/.test(version) || !url.startsWith('https://github.com/')) return
+    if (newer(version, app.getVersion())) {
+      update = { version, url, packaged: app.isPackaged }
+      send('update', update)
+      buildTrayMenu()
+    }
+  } catch {}
+}
+
+function makeTray () {
+  const img = isMac
+    ? nativeImage.createFromPath(path.join(__dirname, 'assets', 'trayTemplate.png'))
+    : nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-win.png'))
+  if (isMac) img.setTemplateImage(true)
+  tray = new Tray(img)
+  tray.setToolTip('Slake')
+  buildTrayMenu()
+  // Windows: click the tray icon to open. (On a Mac, clicking shows the menu.)
+  if (!isMac) tray.on('click', showWindow)
+}
 const themesDir = () => path.join(app.getPath('userData'), 'themes')
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 
@@ -103,9 +203,16 @@ app.whenReady().then(async () => {
     const room = slake.rooms.get(roomId)
     if (!room) return
     send('record', present(room, r))
-    if ((r.kind === 'msg' || r.kind === 'file') && r.author !== slake.me.publicKey && win && !win.isFocused() && Notification.isSupported()) {
-      const body = r.kind === 'file' ? `📄 ${r.body.fname}` : r.body.text.slice(0, 200)
-      new Notification({ title: `${r.name} in ${room.title}`, body }).show()
+    const fromOthers = (r.kind === 'msg' || r.kind === 'file') && r.author !== slake.me.publicKey
+    const fresh = Date.now() - r.ts < 10 * 60 * 1000   // not old history arriving in a batch
+    if (fromOthers && fresh && win && !(win.isVisible() && win.isFocused())) {
+      setUnread(unreadCount + 1)
+      if (Notification.isSupported()) {
+        const body = r.kind === 'file' ? `📄 ${r.body.fname}` : r.body.text.slice(0, 200)
+        const n = new Notification({ title: `${r.name} in ${room.title}`, body })
+        n.on('click', showWindow)
+        n.show()
+      }
     }
   })
 
@@ -119,6 +226,8 @@ app.whenReady().then(async () => {
     try { return { ok: true, value: await fn(arg) } } catch (err) { return { ok: false, error: err.message } }
   })
   handle('state', () => state())
+  handle('update', () => update)
+  handle('openUpdate', () => { if (update) shell.openExternal(update.url) })
   handle('setName', (n) => slake.setName(n))
   handle('createRoom', (title) => slake.createRoom(title, { waitForNetwork: false }))
   handle('joinRoom', (inv) => slake.joinRoom(inv, { waitForNetwork: false }))
@@ -185,6 +294,8 @@ app.whenReady().then(async () => {
   win = new BrowserWindow({
     width: 1040,
     height: 700,
+    show: !(process.argv.includes('--hidden') || app.getLoginItemSettings().wasOpenedAsHidden),
+    icon: path.join(__dirname, 'assets', 'icon-256.png'),
     minWidth: 680,
     minHeight: 440,
     title: profile ? `Slake (${profile})` : 'Slake',
@@ -203,9 +314,44 @@ app.whenReady().then(async () => {
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (e) => e.preventDefault())
+
+  // Closing the window hides it; Slake keeps running in the menu bar.
+  win.on('close', (e) => {
+    if (quitting) return
+    e.preventDefault()
+    hideWindow()
+  })
+  win.on('focus', () => setUnread(0))
+  win.on('show', () => setUnread(0))
+
+  makeTray()
+  checkForUpdate()
+  setInterval(checkForUpdate, 6 * 60 * 60 * 1000)
+
+  // Build check: `SLAKE_SMOKE=1` starts everything, reports, and quits.
+  if (process.env.SLAKE_SMOKE) {
+    win.webContents.once('did-finish-load', async () => {
+      const ok = await win.webContents.executeJavaScript('typeof window.slake === "object" && !!document.getElementById("chat")')
+      if (!slake.me.name) slake.setName('Smoke')
+      const id = await slake.createRoom('smoke-test', { waitForNetwork: false })
+      console.log(`SLAKE_SMOKE ok=${ok} packaged=${app.isPackaged} room=${id.slice(0, 8)} userData=${app.getPath('userData')}`)
+      quitting = true
+      app.quit()
+    })
+  }
+  if (isMac && app.dock && !win.isVisible()) app.dock.hide()
+  if (isMac && app.dock && !app.isPackaged) app.dock.setIcon(path.join(__dirname, 'assets', 'icon-256.png'))
 })
 
-app.on('window-all-closed', async () => {
-  if (slake) await slake.stop()
-  app.quit()
+// Clicking the dock icon brings the window back.
+app.on('activate', () => showWindow())
+app.on('before-quit', () => { quitting = true })
+app.on('will-quit', async (e) => {
+  if (!slake) return
+  e.preventDefault()
+  const s = slake
+  slake = null
+  try { await s.stop() } catch {}
+  app.exit(0)
 })
+app.on('window-all-closed', () => { /* stay in the menu bar */ })

@@ -9,7 +9,32 @@ every room you've been invited to, grouped by whose space it's in.
 Every copy of Slake keeps the history of its rooms and passes new messages
 along to whoever else in that room is online, the way gossip spreads.
 
-## Run it on your Mac (or PC)
+## Get the app
+
+Download the newest **Slake** from the
+[Releases page](https://github.com/johnmitchellxxx/slake/releases):
+
+- **Mac:** `Slake-x.y.z-arm64.dmg` for Apple Silicon (M1 and newer),
+  `Slake-x.y.z-x64.dmg` for older Intel Macs. Open it and drag Slake into
+  Applications. The first time, macOS will say it can't check the app: go to
+  **System Settings → Privacy & Security**, scroll down, and click
+  **Open Anyway**. (That goes away once Slake has a paid Apple certificate.)
+- **Windows:** `Slake-Setup-x.y.z.exe`. Windows may show "Windows protected
+  your PC": click **More info → Run anyway**.
+
+Slake lives in your menu bar (the system tray on Windows). Closing the window
+keeps it running, so you stay reachable and others can still grab files
+you've shared. Quit from the menu bar icon. Turn on **Open at login** there
+too, if you like.
+
+Every time it opens, and every few hours after, Slake checks for a newer
+version and shows a note at the bottom of the sidebar when there is one.
+
+**Making a new release** (for whoever maintains this): bump `version` in
+`package.json`, commit, then `git tag v0.4.1 && git push --tags`. GitHub builds
+both installers and posts them to Releases (see `.github/workflows/release.yml`).
+
+## Run it from the code instead
 
 You need Node.js once. If `node --version` in Terminal prints nothing,
 install it from https://nodejs.org (the "LTS" button).

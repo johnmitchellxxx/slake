@@ -1,12 +1,14 @@
 {
   "name": "slake",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Serverless peer-to-peer chat: everyone has a space, rooms live in spaces.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "second": "electron . --profile=second",
-    "test": "node test.js"
+    "test": "node test.js",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
   },
   "dependencies": {
     "hypercore-crypto": "^3.7.0",
@@ -15,6 +17,76 @@
   },
   "devDependencies": {
     "electron": "^45.1.0",
-    "hyperdht": "^6.35.0"
+    "hyperdht": "^6.35.0",
+    "electron-builder": "^26.18.0"
+  },
+  "productName": "Slake",
+  "author": "Mr. Mitchell",
+  "build": {
+    "appId": "live.pantheon.slake",
+    "productName": "Slake",
+    "copyright": "Slake",
+    "files": [
+      "main.js",
+      "preload.js",
+      "core.js",
+      "ui/**",
+      "themes/**",
+      "assets/**",
+      "package.json",
+      "!**/*.map"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.social-networking",
+      "icon": "build/icon.png",
+      "identity": "-",
+      "artifactName": "Slake-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "Slake"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Slake-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Slake"
+    },
+    "npmRebuild": false,
+    "asarUnpack": [
+      "**/*.node",
+      "**/prebuilds/**"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "johnmitchellxxx",
+        "repo": "slake",
+        "releaseType": "release"
+      }
+    ]
   }
 }

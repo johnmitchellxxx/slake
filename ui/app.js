@@ -584,6 +584,18 @@ function renderThemes (themes, theme) {
 $('themesBtn').onclick = () => s.openThemes()
 $('themeSelect').onchange = async (e) => applyTheme((await s.setTheme(e.target.value)).css)
 
+// ---------- New version note ----------
+function showUpdate (u) {
+  const b = $('updateBanner')
+  if (!u) { b.hidden = true; return }
+  b.textContent = ''
+  b.append(el('b', null, `Slake ${u.version} is out. `), document.createTextNode(u.packaged ? 'Get it' : 'Run git pull to update'))
+  b.hidden = false
+}
+$('updateBanner').onclick = () => s.openUpdate()
+s.onUpdate(showUpdate)
+s.update().then(showUpdate).catch(() => {})
+
 // ---------- Live updates ----------
 s.onRecord((r) => {
   if (!records[r.room]) records[r.room] = []

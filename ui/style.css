@@ -230,3 +230,10 @@ button.confirm { color: var(--danger) !important; }
 .msg.flash { animation: flash 1.6s ease-out; border-radius: var(--radius); }
 @keyframes flash { from { background: color-mix(in srgb, var(--accent) 28%, transparent); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .msg.flash { animation: none; outline: 2px solid var(--accent); } }
+
+/* ---------- Update note ---------- */
+.update {
+  margin: 0 12px 10px; text-align: left; font-size: 13px; font-weight: 500;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--accent);
+}
+.update b { color: var(--accent); }
