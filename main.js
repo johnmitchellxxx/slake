@@ -129,8 +129,11 @@ function seedThemes () {
   }
 }
 
+// Themes you've used most recently come first; the rest follow alphabetically.
 function listThemes () {
-  return ['default', ...fs.readdirSync(themesDir()).filter((f) => f.endsWith('.css')).map((f) => f.slice(0, -4))]
+  const all = ['default', ...fs.readdirSync(themesDir()).filter((f) => f.endsWith('.css')).map((f) => f.slice(0, -4)).sort()]
+  const recent = (readSettings().recentThemes || []).filter((t) => all.includes(t))
+  return [...recent, ...all.filter((t) => !recent.includes(t))]
 }
 
 function themeCSS (name) {
@@ -306,8 +309,10 @@ app.whenReady().then(async () => {
     return r.response === 0
   })
   handle('setTheme', (t) => {
-    writeSettings({ ...readSettings(), theme: t })
-    return { css: themeCSS(t) }
+    const st = readSettings()
+    const recentThemes = [t, ...(st.recentThemes || []).filter((x) => x !== t)].slice(0, 50)
+    writeSettings({ ...st, theme: t, recentThemes })
+    return { css: themeCSS(t), themes: listThemes() }
   })
 
   win = new BrowserWindow({

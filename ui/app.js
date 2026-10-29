@@ -678,7 +678,12 @@ function renderThemes (themes, theme) {
   }
 }
 $('themesBtn').onclick = () => s.openThemes()
-$('themeSelect').onchange = async (e) => applyTheme((await s.setTheme(e.target.value)).css)
+$('themeSelect').onchange = async (e) => {
+  const t = e.target.value
+  const r = await s.setTheme(t)
+  applyTheme(r.css)
+  renderThemes(r.themes, t)   // the one you just picked moves to the top
+}
 
 // ---------- Your picture ----------
 const EMOJI_CHOICES = ['😎', '🦊', '🐙', '🦉', '🐝', '🌵', '🍄', '🔥', '🌊', '🌙', '⚡', '🎧',
