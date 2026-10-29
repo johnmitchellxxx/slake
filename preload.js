@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('slake', {
   onKnocked: (fn) => ipcRenderer.on('knocked', (_e, x) => fn(x)),
   removeMember: (room, key) => call('removeMember', { room, key }),
   leaveRoom: (room) => call('leaveRoom', room),
+  deleteRoom: (room) => call('deleteRoom', room),
+  onClosed: (fn) => ipcRenderer.on('closed', (_e, x) => fn(x)),
   openThemes: () => call('openThemes'),
   copyText: (t) => call('copyText', t),
   pickFile: () => call('pickFile'),

@@ -135,9 +135,9 @@ function roomItem (r) {
   li.append(el('span', null, '# ' + r.title))
   if (r.id === current) li.classList.add('active')
   else if (unread.has(r.id)) { li.classList.add('unread'); li.append(el('span', 'dot')) }
-  if (r.removed) li.classList.add('gone')
+  if (r.removed || r.closedAt) li.classList.add('gone')
   else if (r.online > 0 && r.id !== current && !unread.has(r.id)) li.append(el('span', 'live'))
-  li.title = r.removed ? 'You were removed from this room' : r.online ? `${r.online} online` : 'Nobody else online'
+  li.title = r.closedAt ? `Deleted by ${r.ownerName}` : r.removed ? 'You were removed from this room' : r.online ? `${r.online} online` : 'Nobody else online'
   li.dataset.room = r.id
   li.onclick = () => openRoom(r.id)
   return li
@@ -256,15 +256,19 @@ function renderHeader () {
   } else {
     const where = r.mine ? 'In your space' : `In ${r.ownerName}'s space`
     const names = (r.onlineKeys || []).map(nameOf)
-    const who = r.removed ? 'removed'
+    const who = r.closedAt ? 'deleted' : r.removed ? 'removed'
       : !names.length ? 'nobody else online'
         : names.length <= 3 ? `${names.join(', ')} online`
           : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more online`
     $('roomSub').textContent = `${where} · ${who}`
   }
-  $('removedBanner').hidden = !r.removed
-  $('composer').classList.toggle('disabled', r.removed)
-  $('text').placeholder = r.removed ? '' : r.dm ? `Message ${r.title}` : `Message #${r.title}`
+  const gone = r.removed || !!r.closedAt
+  $('removedBanner').hidden = !gone
+  $('bannerText').textContent = r.closedAt
+    ? `This room was deleted by ${r.ownerName}. It leaves your sidebar ${fmtLeftUntil(r.closedAt + 24 * 3600 * 1000)}.`
+    : "You're no longer in this room. You can still read what was said before."
+  $('composer').classList.toggle('disabled', gone)
+  $('text').placeholder = gone ? '' : r.dm ? `Message ${r.title}` : `Message #${r.title}`
   $('membersPanel').hidden = !(membersOpen && r.mine)
   if (membersOpen && r.mine) renderMembers(r)
 }
@@ -358,7 +362,7 @@ function renderMessages () {
   }
   if (!list.some((r) => r.kind === 'msg' || r.kind === 'file')) {
     const r = roomById(current)
-    if (r && !r.removed) {
+    if (r && !r.removed && !r.closedAt) {
       box.append(el('p', 'empty', r.dm
         ? (online.has(r.peer) ? `Say hi to ${r.title}.` : `${r.title} gets this conversation the next time you're both online.`)
         : r.mine
@@ -579,6 +583,14 @@ async function showCode (r) {
 }
 $('codeClose').onclick = () => { $('codeDialog').hidden = true }
 s.onKnocked(({ name, title }) => toast(`${name} joined #${title} with your code`))
+s.onClosed(({ title, by }) => { toast(`${by} deleted #${title}`); refresh() })
+
+function fmtLeftUntil (ts) {
+  const ms = ts - Date.now()
+  if (ms <= 0) return 'soon'
+  const h = Math.round(ms / 3600000)
+  return h >= 1 ? `in about ${h} hour${h === 1 ? '' : 's'}` : 'within the hour'
+}
 
 async function copyInvite (r) {
   await s.copyInvite(r.id)
@@ -607,9 +619,9 @@ async function removePerson (r, key, name) {
 }
 
 function roomMenu (r) {
-  if (r.removed) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
+  if (r.removed || r.closedAt) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
   if (r.dm) return [{ id: 'closeDM', label: 'Close conversation' }]
-  if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }]
+  if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }, { type: 'separator' }, { id: 'delete', label: 'Delete room…' }]
   return [{ id: 'leave', label: 'Leave room…' }]
 }
 
@@ -618,6 +630,10 @@ async function runRoomChoice (r, choice) {
   if (choice === 'code') await showCode(r)
   if (choice === 'members') showMembers(r)
   if (choice === 'leave') await leave(r)
+  if (choice === 'delete') {
+    const ok = await s.confirm({ action: 'Delete', message: `Delete #${r.title}?`, detail: "It disappears for everyone in it, and nobody can post there again. Slake can't erase what people already saved." })
+    if (ok) { await s.deleteRoom(r.id); if (current === r.id) current = null; await refresh(); toast(`#${r.title} deleted`) }
+  }
   if (choice === 'closeDM') {
     const ok = await s.confirm({ action: 'Close', message: `Close your conversation with ${r.title}?`, detail: 'It comes off your sidebar here. To talk again, right-click them and choose Message.' })
     if (ok) { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }

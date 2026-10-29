@@ -233,6 +233,7 @@ function roomInfo (room) {
     ownerName: room.ownerName,
     mine,
     removed: room.removed,
+    closedAt: room.closedAt || null,
     online: slake.online(room.id),
     members: mine && !room.dm ? slake.members(room.id) : null
   }
@@ -248,7 +249,11 @@ function versionInfo () {
   return { version: app.getVersion(), updated: when }
 }
 
-function rooms () { return slake ? [...slake.rooms.values()].map(roomInfo) : [] }
+// A deleted room vanishes for its owner right away; guests see it (read-only,
+// with a note) for 24 hours first.
+const DELETED_GRACE = 24 * 3600 * 1000
+const showRoom = (r) => !r.closedAt || (r.owner !== slake.me.publicKey && Date.now() - r.closedAt < DELETED_GRACE)
+function rooms () { return slake ? [...slake.rooms.values()].filter(showRoom).map(roomInfo) : [] }
 
 function state () {
   const records = {}
@@ -275,6 +280,11 @@ app.whenReady().then(async () => {
       n.show()
     }
   })
+  slake.on('closed', (roomId, title, by) => {
+    if (by !== slake.me.name) send('closed', { title, by })
+  })
+  // Re-check every 10 minutes so deleted rooms leave guests' sidebars on time.
+  setInterval(() => send('rooms', rooms()), 10 * 60 * 1000)
   slake.on('knocked', (roomId, name) => {
     const room = slake.rooms.get(roomId)
     send('knocked', { room: roomId, name, title: room ? room.title : '' })
@@ -336,6 +346,7 @@ app.whenReady().then(async () => {
   handle('joinWithCode', (code) => slake.joinWithCode(code))
   handle('removeMember', ({ room, key }) => slake.removeMember(room, key))
   handle('leaveRoom', (room) => slake.leaveRoom(room))
+  handle('deleteRoom', (room) => slake.deleteRoom(room))
   handle('openThemes', () => shell.openPath(themesDir()))
   handle('copyText', (t) => clipboard.writeText(String(t || '')))
 

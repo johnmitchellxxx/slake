@@ -140,6 +140,12 @@ connected right now. Each room's header lists who's on.
 live in their own section below your rooms. A DM is a private two-person
 room; it reaches the other person the moment you're both online.
 
+**Delete a room you own:** right-click it → **Delete room…**. It's gone from
+your sidebar right away. Guests see it marked "deleted" for 24 hours, then it
+leaves their sidebar too, and nobody can post in it. Each Slake clears the
+room from disk a week later (that week lets the news reach people who were
+offline).
+
 **Invite with a code.** Right-click a room you own and choose **Invite with a
 code…** for a 5-character code like `K7Q2M`. Anyone who types it in the join
 box gets in, for 15 minutes, while your Slake is running.

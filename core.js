@@ -21,7 +21,8 @@ const { EventEmitter } = require('events')
 const MAX_TEXT = 4000
 const MAX_LINE = 8 * 1024 * 1024
 const MAX_MEMBERS = 256
-const KINDS = new Set(['room', 'join', 'msg', 'rekey', 'file', 'profile'])
+const KINDS = new Set(['room', 'join', 'msg', 'rekey', 'file', 'profile', 'close'])
+const CLOSE_KEEP = 7 * 24 * 3600 * 1000  // how long a deleted room's note keeps travelling
 const MAX_AVATAR = 60000  // a small photo, as text
 
 // Files are fleeting: they always vanish after one of these.
@@ -61,7 +62,7 @@ function validAvatar (a) {
 function validBody (kind, b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return false
   if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40 && (b.dm === undefined || b.dm === true)
-  if (kind === 'join') return Object.keys(b).length === 0
+  if (kind === 'join' || kind === 'close') return Object.keys(b).length === 0
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
   if (kind === 'profile') return validAvatar(b.avatar)
   if (kind === 'file') {
@@ -297,6 +298,8 @@ class Slake extends EventEmitter {
         try { const r = JSON.parse(line); if (wellFormed(r) && r.room === room.id) room.records.set(r.id, r) } catch {}
       }
     } catch {}
+    const cl = [...room.records.values()].find((r) => r.kind === 'close')
+    room.closedAt = cl ? cl.ts : null
     this.rooms.set(room.id, room)
     this._indexKeys(room)
     return room
@@ -451,6 +454,7 @@ class Slake extends EventEmitter {
     this._needName()
     const room = this._room(roomId)
     if (room.removed) throw new Error("You're no longer in this room")
+    if (room.closedAt) throw new Error('This room was deleted')
     text = String(text || '').trim()
     if (!text || text.length > MAX_TEXT) throw new Error('Message empty or too long')
     const r = this._sign(room, 'msg', room.epoch, { text })
@@ -658,10 +662,32 @@ class Slake extends EventEmitter {
     if (this._pendingDMs().delete(room.id)) this._savePendingDMs()
   }
 
+  // Delete a room you own. Everyone's Slake hides it as soon as it hears,
+  // passes the news along for a week, then deletes its copy of the room.
+  async deleteRoom (roomId) {
+    const room = this._room(roomId)
+    if (room.owner !== this.identity.publicKey) throw new Error('Only the owner can delete a room')
+    if (room.dm) throw new Error('Close the conversation instead')
+    if (room.closedAt) return
+    this._publish(room, this._sign(room, 'close', room.epoch, {}))
+    for (const [label, c] of [...this.codes]) if (c.roomId === roomId) this._endCode(label)
+  }
+
+  // Remove a room and everything Slake stored for it.
+  async _forget (room) {
+    await this._leaveTopics(room)
+    this._unindexKeys(room)
+    this.rooms.delete(room.id)
+    for (const ext of ['.json', '.ndjson']) {
+      try { fs.unlinkSync(path.join(this.roomsDir, room.id + ext)) } catch {}
+    }
+    this.emit('rooms')
+  }
+
   // Take a room off your sidebar. History is renamed aside, not deleted.
   async leaveRoom (roomId) {
     const room = this._room(roomId)
-    if (room.owner === this.identity.publicKey && !room.dm) throw new Error("You own this room, so it stays in your space")
+    if (room.owner === this.identity.publicKey && !room.dm && !room.closedAt) throw new Error("You own this room, so it stays in your space")
     if (room.dm && this._pendingDMs().delete(roomId)) this._savePendingDMs()
     await this._leaveTopics(room)
     this._unindexKeys(room)
@@ -683,6 +709,9 @@ class Slake extends EventEmitter {
     if (!r || room.records.has(r.id)) return false
     if (!wellFormed(r) || r.room !== room.id) return false
     if (r.kind === 'room' && (r.author !== room.owner || r.epoch !== 0)) return false
+    if (r.kind === 'close' && r.author !== room.owner) return false
+    // Nothing new is accepted once the owner has deleted the room.
+    if (room.closedAt && r.kind !== 'close' && r.ts > room.closedAt) return false
     if (r.kind === 'rekey') {
       if (r.author !== room.owner || r.body.to !== r.epoch + 1) return false
       if (this._rekeyTo(room, r.body.to)) return false
@@ -704,6 +733,11 @@ class Slake extends EventEmitter {
       this.emit('rooms')
     }
     if (rec.kind === 'rekey') this._onRekey(room, rec)
+    if (rec.kind === 'close' && !room.closedAt) {
+      room.closedAt = rec.ts
+      this.emit('closed', room.id, room.title, rec.name)
+      this.emit('rooms')
+    }
     this.emit('record', room.id, rec)
     if (rec.kind === 'file' && rec.author !== this.identity.publicKey && rec.body.size <= AUTO_FETCH) this._fetch(room, rec)
     return true
@@ -856,7 +890,8 @@ class Slake extends EventEmitter {
   _expired (rec) { return this.now() >= rec.ts + rec.body.ttl }
 
   fileStatus (rec) {
-    if (this._expired(rec)) return { state: 'expired', expiresAt: rec.ts + rec.body.ttl }
+    const room = this.rooms.get(rec.room)
+    if (this._expired(rec) || (room && room.closedAt)) return { state: 'expired', expiresAt: rec.ts + rec.body.ttl }
     if (fs.existsSync(this._filePath(rec.body.fid))) return { state: 'ready', expiresAt: rec.ts + rec.body.ttl }
     const t = this.transfers.get(rec.body.fid)
     if (t && t.peer) return { state: 'downloading', progress: rec.body.size ? t.bytes / rec.body.size : 1, expiresAt: rec.ts + rec.body.ttl }
@@ -1030,10 +1065,11 @@ class Slake extends EventEmitter {
   purgeExpired () {
     const live = new Set()
     const dead = new Set()
-    for (const room of this.rooms.values()) {
+    for (const room of [...this.rooms.values()]) {
+      if (room.closedAt && this.now() - room.closedAt > CLOSE_KEEP) { this._forget(room).catch(() => {}); continue }
       for (const r of room.records.values()) {
         if (r.kind !== 'file') continue
-        if (this._expired(r)) {
+        if (this._expired(r) || room.closedAt) {
           dead.add(r.body.fid)
           const had = fs.existsSync(this._filePath(r.body.fid)) || this.transfers.has(r.body.fid)
           this._dropTransfer(r.body.fid)

@@ -165,6 +165,16 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   assert.ok(texts(sam2, project).includes('secret plans after bob left'))
   console.log('✓ Sam kept his rooms, keys and history after restarting')
 
+  // John deletes the party room: it disappears for Sam too; a week later it's gone from disk.
+  await john.deleteRoom(party)
+  await until(() => sam2.rooms.get(party) && sam2.rooms.get(party).closedAt, 'Sam hears the party room was deleted')
+  assert.throws(() => sam2.post(party, 'too late'), /deleted/)
+  for (const x of [john, sam2]) { x.now = () => Date.now() + 8 * 24 * 3600 * 1000; x.purgeExpired() }
+  await until(() => !sam2.rooms.has(party) && !john.rooms.has(party), 'party room forgotten after a week')
+  assert.ok(!fs.existsSync(path.join(tmp, 'Sam', 'rooms', party + '.ndjson')))
+  for (const x of [john, sam2]) x.now = () => Date.now()
+  console.log('✓ John deleted the party room; it vanished for Sam and was cleared from disk a week later')
+
   // Leaving a room someone else owns.
   await john.leaveRoom(garage)
   assert.strictEqual(john.rooms.has(garage), false)
