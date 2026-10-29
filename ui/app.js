@@ -31,7 +31,42 @@ const el = (tag, cls, text) => {
 // Someone's picture is the newest signed "profile" note they've posted in any
 // room you share. With none, it's a color and emoji made from their key.
 let avatars = new Map()
+let clashes = new Map()   // lowercased name -> Map(author -> first time seen)
+
+// Two different people using the same name in rooms you share.
+function rebuildClashes () {
+  const seen = new Map()
+  for (const list of Object.values(records)) {
+    for (const r of list) {
+      if (r.kind === 'rekey' || !r.name) continue
+      const n = r.name.toLowerCase()
+      if (!seen.has(n)) seen.set(n, new Map())
+      const m = seen.get(n)
+      if (!m.has(r.author) || r.ts < m.get(r.author)) m.set(r.author, r.ts)
+    }
+  }
+  clashes = new Map([...seen].filter(([, m]) => m.size > 1))
+}
+
+// If someone else had your name first, ask you to pick another.
+function renderClash () {
+  const n = me && me.name && clashes.get(me.name.toLowerCase())
+  const mine = n && n.get(me.publicKey)
+  const firstOther = n && Math.min(...[...n].filter(([k]) => k !== me.publicKey).map(([, t]) => t))
+  const show = !!(n && (mine === undefined || firstOther < mine))
+  $('clashBanner').hidden = !show
+  if (show) $('clashText').textContent = `Someone else was already "${me.name}" in a room you're in. Pick a different name so people can tell you apart.`
+}
+
+async function rename (name) {
+  name = String(name || '').trim()
+  if (!name) return
+  try { await s.setName(name); me.name = name; rebuildClashes(); renderAll(); toast(`You're now ${name}`) } catch (e) { toast(e.message) }
+}
+$('clashBanner').onsubmit = (e) => { e.preventDefault(); rename($('clashInput').value); $('clashInput').value = '' }
+
 function rebuildAvatars () {
+  rebuildClashes()
   const latest = new Map()
   for (const list of Object.values(records)) {
     for (const r of list) {
@@ -96,11 +131,9 @@ function roomItem (r) {
 }
 
 function renderSidebar () {
-  const b = badge(me.publicKey)
   $('meLine').textContent = ''
-  const who = el('span')
-  who.append(el('b', null, me.name), document.createTextNode(' ' + b.emoji))
-  $('meLine').append(avatarEl(me.publicKey, true), who)
+  $('meLine').append(avatarEl(me.publicKey, true), el('b', null, me.name))
+  renderClash()
 
   const nav = $('spaces')
   nav.textContent = ''
@@ -155,12 +188,14 @@ $('joinForm').onsubmit = async (e) => {
   e.preventDefault()
   const v = $('joinInput').value.trim()
   if (!v) return
+  const isCode = /^[\w\s-]{5,7}$/.test(v) && v.replace(/[\s-]/g, '').length === 5
   try {
-    const id = await s.joinRoom(v)
+    if (isCode) toast('Knocking…')
+    const id = isCode ? await s.joinWithCode(v) : await s.joinRoom(v)
     $('joinInput').value = ''
     await refresh()
     openRoom(id)
-    toast('Joined. History arrives as soon as someone in the room is online.')
+    toast(isCode ? "You're in." : 'Joined. History arrives as soon as someone in the room is online.')
   } catch (err) { toast(err.message) }
 }
 
@@ -257,9 +292,14 @@ function renderMessages () {
     const b = badge(m.author)
     const av = avatarEl(m.author)
     const meta = el('div', 'meta')
-    const bd = el('span', 'badge', b.emoji)
-    bd.title = 'Identity check: the same person always has the same pair'
-    meta.append(el('span', 'name', m.name), bd, el('span', 'time', fmtTime(m.ts)))
+    meta.append(el('span', 'name', m.name))
+    // The emoji pair only shows up when two different people share a name.
+    if (clashes.has(m.name.toLowerCase())) {
+      const bd = el('span', 'badge clash-mark', '⚠️ ' + b.emoji)
+      bd.title = 'More than one person uses this name. The emoji pair tells them apart: the same person always has the same pair.'
+      meta.append(bd)
+    }
+    meta.append(el('span', 'time', fmtTime(m.ts)))
     const body = el('div', 'body')
     if (m.kind === 'file') body.append(fileCard(m))
     else fillBody(body, m.text)
@@ -461,6 +501,7 @@ $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') cl
 $('searchClose').onclick = closeSearch
 document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !$('chat').hidden) { e.preventDefault(); openSearch() }
+  if (e.key === 'Escape' && !$('codeDialog').hidden) $('codeDialog').hidden = true
   if (e.key === 'Escape' && !$('avatarPicker').hidden) $('avatarPicker').hidden = true
   if (e.key === 'Escape' && searching) closeSearch()
   else if (e.key === 'Escape' && membersOpen) closeMembers()
@@ -476,6 +517,17 @@ function renderAll () {
 // ---------- Right-click menus ----------
 // Everything you can do to a room or a person lives here, so the window
 // itself stays clean.
+
+async function showCode (r) {
+  const { code } = await s.inviteCode(r.id)
+  $('codeTitle').textContent = `Code for #${r.title}`
+  $('codeValue').textContent = code
+  $('codeNote').textContent = 'Anyone who types this in the join box gets in, for the next 15 minutes, while your Slake is running. It works for as many people as you give it to.'
+  $('codeDialog').hidden = false
+  $('codeCopy').onclick = async () => { await s.copyText(code); toast('Code copied') }
+}
+$('codeClose').onclick = () => { $('codeDialog').hidden = true }
+s.onKnocked(({ name, title }) => toast(`${name} joined #${title} with your code`))
 
 async function copyInvite (r) {
   await s.copyInvite(r.id)
@@ -505,12 +557,13 @@ async function removePerson (r, key, name) {
 
 function roomMenu (r) {
   if (r.removed) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
-  if (r.mine) return [{ id: 'invite', label: 'Copy invite' }, { id: 'members', label: 'Members…' }]
+  if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }]
   return [{ id: 'leave', label: 'Leave room…' }]
 }
 
 async function runRoomChoice (r, choice) {
   if (choice === 'invite') await copyInvite(r)
+  if (choice === 'code') await showCode(r)
   if (choice === 'members') showMembers(r)
   if (choice === 'leave') await leave(r)
   if (choice === 'dismiss') { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }
@@ -647,7 +700,11 @@ async function setAvatar (a) {
   } catch (e) { toast(e.message) }
 }
 
-$('meLine').onclick = () => { $('avatarPicker').hidden = !$('avatarPicker').hidden }
+$('meLine').onclick = () => {
+  $('avatarPicker').hidden = !$('avatarPicker').hidden
+  $('nameChangeInput').value = me.name
+}
+$('nameChange').onsubmit = (e) => { e.preventDefault(); rename($('nameChangeInput').value); $('avatarPicker').hidden = true }
 $('pickerClose').onclick = () => { $('avatarPicker').hidden = true }
 $('pickPhoto').onclick = async () => {
   try { const img = await s.pickImage(); if (img) await setAvatar({ image: img }) } catch (e) { toast(e.message) }
@@ -678,6 +735,7 @@ s.onRecord((r) => {
   records[r.room].push(r)
   records[r.room].sort((a, b) => a.ts - b.ts)
   if (r.kind === 'profile') { rebuildAvatars(); renderAll(); return }
+  rebuildClashes()
   if (r.room !== current && (r.kind === 'msg' || r.kind === 'file')) unread.add(r.room)
   renderSidebar()
   if (r.room === current) renderMessages()

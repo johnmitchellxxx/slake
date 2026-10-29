@@ -122,6 +122,51 @@ function openSealed (boxHex, curve) {
   return sodium.crypto_box_seal_open(out, box, curve.pk, curve.sk) ? out : null
 }
 
+// ---------- Short codes ----------
+// A 5-character code is too short to carry a room key, so it works as a knock:
+// the owner's Slake listens at a meeting point made from the code, a friend
+// proves they know the code, and the owner's Slake hands over the real
+// invite, sealed so only that friend can open it. Codes last 15 minutes.
+//
+// The meeting point is made with a deliberately slow hash, so someone who
+// spots it in the public phone book can't quickly work backwards to the code.
+// (Fine for a small group; strengthen when Slake grows.)
+const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTVWXYZ'   // no 0/O, 1/I/L or U
+const CODE_LEN = 5
+const CODE_TTL = 15 * 60 * 1000
+const CODE_SALT = Buffer.from('slake-knock-v1!!')     // 16 bytes
+
+function normalizeCode (str) {
+  const c = String(str || '').toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1')
+  if (c.length !== CODE_LEN || ![...c].every((ch) => CODE_CHARS.includes(ch))) return null
+  return c
+}
+
+function newCode () {
+  const bytes = hc.randomBytes(CODE_LEN)
+  return [...bytes].map((b) => CODE_CHARS[b % CODE_CHARS.length]).join('')
+}
+
+function codeSeed (code) {
+  const out = Buffer.alloc(32)
+  sodium.crypto_pwhash(out, Buffer.from(code), CODE_SALT, 3, sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, sodium.crypto_pwhash_ALG_ARGON2ID13)
+  return out
+}
+
+function sealBytes (memberHex, bytes) {
+  const pk = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES)
+  sodium.crypto_sign_ed25519_pk_to_curve25519(pk, Buffer.from(memberHex, 'hex'))
+  const out = Buffer.alloc(bytes.length + sodium.crypto_box_SEALBYTES)
+  sodium.crypto_box_seal(out, bytes, pk)
+  return out
+}
+
+function openBytes (box, curve) {
+  if (box.length <= sodium.crypto_box_SEALBYTES) return null
+  const out = Buffer.alloc(box.length - sodium.crypto_box_SEALBYTES)
+  return sodium.crypto_box_seal_open(out, box, curve.pk, curve.sk) ? out : null
+}
+
 // ---------- Invites ----------
 // slake:<base64url of {v, r: room id, t: title, o: owner key, n: owner name, e: epoch, k: room key}>
 
@@ -160,6 +205,8 @@ class Slake extends EventEmitter {
     this.transfers = new Map()   // fid -> { room, rec, bytes, peer, tried, timer }
     this.wanted = new Set()      // big files someone clicked Download on
     this.now = () => Date.now()  // tests can fast-forward the clock
+    this.codes = new Map()       // label -> { code, roomId, seed, topic, expires }  (codes I handed out)
+    this.knocks = new Map()      // label -> { seed, topic, resolve, reject, timer }  (codes I'm using)
     this.swarm = null
     fs.mkdirSync(this.roomsDir, { recursive: true })
     fs.mkdirSync(this.filesDir, { recursive: true })
@@ -199,6 +246,8 @@ class Slake extends EventEmitter {
 
   async stop () {
     clearInterval(this._purgeTimer)
+    for (const label of [...this.codes.keys()]) this._endCode(label)
+    for (const k of this.knocks.values()) clearTimeout(k.timer)
     for (const t of this.transfers.values()) clearTimeout(t.timer)
     if (this.swarm) await this.swarm.destroy()
   }
@@ -425,6 +474,87 @@ class Slake extends EventEmitter {
     this.emit('rooms')
   }
 
+  // Make a 5-character code for one of your rooms. Good for 15 minutes.
+  async inviteCode (roomId) {
+    const room = this._room(roomId)
+    if (room.owner !== this.identity.publicKey) throw new Error('Only the owner can invite people')
+    const code = newCode()
+    const seed = codeSeed(code)
+    const label = hmac(seed, 'slake-knock-label').toString('hex')
+    const topic = hc.discoveryKey(seed)
+    const entry = { code, roomId, seed, topic, expires: this.now() + CODE_TTL }
+    this.codes.set(label, entry)
+    entry.timer = setTimeout(() => this._endCode(label), CODE_TTL)
+    if (entry.timer.unref) entry.timer.unref()
+    await this.swarm.join(topic, { server: true, client: false }).flushed()
+    return { code, expires: entry.expires }
+  }
+
+  _endCode (label) {
+    const c = this.codes.get(label)
+    if (!c) return
+    clearTimeout(c.timer)
+    this.codes.delete(label)
+    if (this.swarm) this.swarm.leave(c.topic).catch(() => {})
+  }
+
+  // Use a 5-character code someone gave you.
+  joinWithCode (str, { timeout = 60000 } = {}) {
+    this._needName()
+    const code = normalizeCode(str)
+    if (!code) return Promise.reject(new Error('Codes are 5 letters and numbers, like K7Q2M'))
+    const seed = codeSeed(code)
+    const label = hmac(seed, 'slake-knock-label').toString('hex')
+    const topic = hc.discoveryKey(seed)
+    return new Promise((resolve, reject) => {
+      const k = { seed, topic, label }
+      k.done = (err, id) => {
+        clearTimeout(k.timer)
+        this.knocks.delete(label)
+        this.swarm.leave(topic).catch(() => {})
+        err ? reject(err) : resolve(id)
+      }
+      k.timer = setTimeout(() => k.done(new Error("Nobody answered that code. Check it, and make sure the room's owner has Slake running.")), timeout)
+      this.knocks.set(label, k)
+      for (const p of this.peers) this._knock(p, k)
+      this.swarm.join(topic, { server: false, client: true })
+    })
+  }
+
+  // Prove we know the code, tied to this one connection. We go first and the
+  // owner never sends a proof back, so a stranger can't use a reply to guess.
+  _knock (peer, k) {
+    const p = hmac(k.seed, Buffer.concat([peer.conn.handshakeHash, Buffer.from('knock')])).toString('hex')
+    this._send(peer, { type: 'knock', l: k.label, p, key: this.identity.publicKey, name: this.identity.name })
+  }
+
+  _onKnock (peer, msg) {
+    const c = this.codes.get(String(msg.l || ''))
+    if (!c || this.now() > c.expires) return
+    const expected = hmac(c.seed, Buffer.concat([peer.conn.handshakeHash, Buffer.from('knock')]))
+    const got = Buffer.from(String(msg.p || ''), 'hex')
+    if (got.length !== expected.length || !nodeCrypto.timingSafeEqual(got, expected)) return
+    if (typeof msg.key !== 'string' || !KEY_RE.test(msg.key)) return
+    const room = this.rooms.get(c.roomId)
+    if (!room || room.removed) return
+    const box = sealBytes(msg.key, Buffer.from(makeInvite(room)))
+    this._send(peer, { type: 'welcome', l: msg.l, box: box.toString('base64') })
+    this.emit('knocked', room.id, String(msg.name || 'Someone').slice(0, 40))
+  }
+
+  _onWelcome (peer, msg) {
+    const k = this.knocks.get(String(msg.l || ''))
+    if (!k) return
+    const inv = openBytes(Buffer.from(String(msg.box || ''), 'base64'), this.curve)
+    if (!inv) return
+    const invite = inv.toString('utf8')
+    const parsed = parseInvite(invite)
+    if (!parsed) return
+    const existing = this.rooms.get(parsed.id)
+    if (existing && !existing.removed && existing.epoch >= parsed.epoch) { k.done(null, parsed.id); return }
+    this.joinRoom(invite, { waitForNetwork: false }).then((id) => k.done(null, id), (e) => k.done(e))
+  }
+
   // Take a room off your sidebar. History is renamed aside, not deleted.
   async leaveRoom (roomId) {
     const room = this._room(roomId)
@@ -540,6 +670,7 @@ class Slake extends EventEmitter {
       if (peer.buf.length > MAX_LINE) return conn.destroy()
     })
     this._hello(peer)
+    for (const k of this.knocks.values()) this._knock(peer, k)
     // Strangers who can't prove they share any room get dropped.
     peer.timer = setTimeout(() => { if (peer.proven.size === 0) { this.emit('rejected'); conn.destroy() } }, 15000)
   }
@@ -577,6 +708,9 @@ class Slake extends EventEmitter {
       }
       return
     }
+
+    if (msg.type === 'knock') { this._onKnock(peer, msg); return }
+    if (msg.type === 'welcome') { this._onWelcome(peer, msg); return }
 
     const room = this.rooms.get(msg.room)
     if (!room || !peer.proven.has(room.id)) return
@@ -828,4 +962,4 @@ class Slake extends EventEmitter {
   }
 }
 
-module.exports = { Slake, parseInvite, makeInvite, wellFormed }
+module.exports = { Slake, parseInvite, makeInvite, wellFormed, normalizeCode }

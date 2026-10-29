@@ -30,11 +30,23 @@
         <button id="meLine" class="me-line" title="Change your picture"></button>
       </header>
 
+      <form id="clashBanner" class="clash" hidden>
+        <p id="clashText"></p>
+        <div class="emoji-form">
+          <input id="clashInput" maxlength="40" autocomplete="off" placeholder="A different name">
+          <button type="submit">Save</button>
+        </div>
+      </form>
+
       <div id="avatarPicker" class="picker" hidden>
         <div class="picker-head">
           <span>Your picture</span>
           <button id="pickerClose" class="ghost" aria-label="Close">✕</button>
         </div>
+        <form id="nameChange" class="emoji-form">
+          <input id="nameChangeInput" maxlength="40" autocomplete="off" placeholder="Your name">
+          <button type="submit" class="secondary">Save</button>
+        </form>
         <button id="pickPhoto" class="secondary full">Choose a photo…</button>
         <div id="emojiGrid" class="emoji-grid"></div>
         <form id="emojiForm" class="emoji-form">
@@ -42,7 +54,7 @@
           <button type="submit" class="secondary">Use</button>
         </form>
         <button id="pickDefault" class="ghost full">Back to the default</button>
-        <p class="hint">Everyone in your rooms sees it. The little emoji pair after your name stays the same: it comes from your identity, so impostors can't copy it.</p>
+        <p class="hint">Everyone in your rooms sees your name and picture.</p>
       </div>
 
       <nav id="spaces"></nav>
@@ -51,7 +63,7 @@
 
       <footer class="foot">
         <form id="joinForm" class="join">
-          <input id="joinInput" autocomplete="off" placeholder="Paste an invite to join a room">
+          <input id="joinInput" autocomplete="off" placeholder="Join with a code or invite">
         </form>
         <div class="theme-row">
           <select id="themeSelect" aria-label="Theme"></select>
@@ -118,6 +130,18 @@
       </div>
     </main>
   </section>
+
+  <div id="codeDialog" class="scrim" hidden>
+    <div class="dialog" role="dialog" aria-labelledby="codeTitle">
+      <div id="codeTitle" class="dialog-title"></div>
+      <div id="codeValue" class="code"></div>
+      <p id="codeNote" class="dialog-note"></p>
+      <div class="dialog-actions">
+        <button id="codeCopy">Copy code</button>
+        <button id="codeClose" class="ghost">Done</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" hidden></div>
   <script src="app.js"></script>

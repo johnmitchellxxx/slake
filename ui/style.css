@@ -264,3 +264,19 @@ button.confirm { color: var(--danger) !important; }
 .emoji-form input { flex: 1; min-width: 0; padding: 6px 8px; font-size: 14px; }
 .emoji-form button { padding: 6px 10px; font-size: 13px; }
 .picker .hint { margin: 0; }
+
+/* ---------- Codes ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; z-index: 20; }
+.dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px);
+  padding: 24px 28px; width: min(380px, calc(100vw - 32px)); text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+.dialog-title { color: var(--muted); font-size: 14px; }
+.code { font-family: var(--mono); font-size: 44px; font-weight: 700; letter-spacing: 0.18em; margin: 10px 0 6px; color: var(--accent); user-select: all; }
+.dialog-note { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 0 0 18px; }
+.dialog-actions { display: flex; gap: 8px; justify-content: center; }
+
+/* ---------- Name clash ---------- */
+.clash { margin: 8px 12px 0; padding: 12px; border: 1px solid var(--danger); border-radius: var(--radius); background: var(--panel-2); display: grid; gap: 8px; }
+.clash p { margin: 0; font-size: 13px; line-height: 1.4; }
+.clash-mark { font-size: 12px; cursor: help; }

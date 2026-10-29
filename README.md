@@ -133,6 +133,15 @@ at the top, and save — the app repaints instantly. Included:
 Themes can restyle anything, not just colors. Look at `necklace.css` for an
 example that draws its own decoration.
 
+**Invite with a code.** Right-click a room you own and choose **Invite with a
+code…** for a 5-character code like `K7Q2M`. Anyone who types it in the join
+box gets in, for 15 minutes, while your Slake is running.
+
+**Names.** If someone else was already using your name in a room you share,
+Slake asks you to pick another. When two people do share a name, a ⚠️ and an
+emoji pair appear next to each; the pair comes from each person's identity
+key, so it tells them apart and can't be faked.
+
 **Right-click is where the actions live.** Right-click a room for its invite,
 members, or to leave it. Right-click a message to copy it, or (in your own
 rooms) to remove its author.

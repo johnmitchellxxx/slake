@@ -195,6 +195,10 @@ app.whenReady().then(async () => {
   await slake.start()
 
   slake.on('rooms', () => send('rooms', rooms()))
+  slake.on('knocked', (roomId, name) => {
+    const room = slake.rooms.get(roomId)
+    send('knocked', { room: roomId, name, title: room ? room.title : '' })
+  })
   slake.on('file', (roomId, fid) => {
     const room = slake.rooms.get(roomId)
     const rec = room && slake._fileRec(room, fid)
@@ -246,6 +250,8 @@ app.whenReady().then(async () => {
   handle('joinRoom', (inv) => slake.joinRoom(inv, { waitForNetwork: false }))
   handle('post', ({ room, text }) => { slake.post(room, text) })
   handle('copyInvite', (room) => clipboard.writeText(slake.invite(room)))
+  handle('inviteCode', (room) => slake.inviteCode(room))
+  handle('joinWithCode', (code) => slake.joinWithCode(code))
   handle('removeMember', ({ room, key }) => slake.removeMember(room, key))
   handle('leaveRoom', (room) => slake.leaveRoom(room))
   handle('openThemes', () => shell.openPath(themesDir()))

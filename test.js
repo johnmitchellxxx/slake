@@ -84,6 +84,21 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   console.log('✓ After its day, every Slake copy is deleted; the stub and Sam\'s saved copy remain')
   for (const x of [john, sam]) x.now = () => Date.now()
 
+  // Short codes: John makes a 5-character code for the party room; Ana uses it.
+  const ana = await mk('Ana')
+  const { code } = await john.inviteCode(party)
+  assert.match(code, /^[2-9A-Z]{5}$/)
+  let knocked = null
+  john.once('knocked', (roomId, name) => { knocked = name })
+  const anaRoom = await ana.joinWithCode(code.toLowerCase().slice(0, 2) + '-' + code.slice(2))
+  assert.strictEqual(anaRoom, party)
+  await until(() => texts(ana, party).includes('bring snacks'), 'Ana catches up on the party room')
+  assert.strictEqual(knocked, 'Ana')
+  console.log(`✓ Ana joined the party room with the code ${code}`)
+  await assert.rejects(() => bob.joinWithCode('ZZZZZ', { timeout: 4000 }), /Nobody answered/)
+  console.log('✓ A wrong code gets no answer')
+  await ana.stop()
+
   // Bob's own space: he makes a room and invites John.
   const garage = await bob.createRoom('bobs-garage')
   await john.joinRoom(bob.invite(garage))
