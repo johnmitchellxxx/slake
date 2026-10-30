@@ -831,7 +831,7 @@ s.update().then(showUpdate).catch(() => {})
 
 // ---------- Message sound ----------
 // One soft water drop, made right here (no sound file): a quiet tone that
-// slides from about 900 Hz down to 340 Hz and fades in a quarter second.
+// eases from about 600 Hz down to 260 Hz, very quietly, and fades out.
 // Plays when someone else's message arrives and you're looking at another
 // room or another app.
 let soundOn = true
@@ -847,15 +847,15 @@ function chime () {
     const osc = audio.createOscillator()
     const g = audio.createGain()
     osc.type = 'sine'
-    osc.frequency.setValueAtTime(900, t)
-    osc.frequency.exponentialRampToValueAtTime(340, t + 0.25)
+    osc.frequency.setValueAtTime(600, t)
+    osc.frequency.exponentialRampToValueAtTime(260, t + 0.35)
     g.gain.setValueAtTime(0, t)
-    g.gain.linearRampToValueAtTime(0.06, t + 0.008)
-    g.gain.exponentialRampToValueAtTime(0.0005, t + 0.4)
+    g.gain.linearRampToValueAtTime(0.03, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0003, t + 0.6)
     osc.connect(g)
     g.connect(audio.destination)
     osc.start(t)
-    osc.stop(t + 0.45)
+    osc.stop(t + 0.65)
   } catch {}
 }
 s.onSound((on) => { soundOn = on })
