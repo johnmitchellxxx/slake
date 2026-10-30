@@ -66,8 +66,9 @@ before tagging: releases are public.
   - **Wallpapers:** built-in set (glassy swirls, soft gradients, vague
     mechanical/blueprint) or your own image, with blur/dim so text stays
     readable. A **default wallpaper** for every room without its own, and
-    **per-room backgrounds** (right-click a room > Background…). All local:
-    only you see your backgrounds.
+    **per-room backgrounds** (right-click a room > Background…). Changing
+    the default applies to rooms without their own background and **never
+    overwrites a room's own background**. All local: only you see them.
 - Plugins: only from the user's own plugins folder, never run from chat.
 - Phone app comes after login + device sync.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
