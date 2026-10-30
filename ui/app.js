@@ -829,35 +829,33 @@ $('updateBanner').onclick = () => s.openUpdate()
 s.onUpdate(showUpdate)
 s.update().then(showUpdate).catch(() => {})
 
-// ---------- Message chime ----------
-// A soft two-note chime, made right here (no sound file). Plays when someone
-// else's message arrives and you're looking at another room or another app.
+// ---------- Message sound ----------
+// One soft water drop, made right here (no sound file): a quiet tone that
+// slides from about 900 Hz down to 340 Hz and fades in a quarter second.
+// Plays when someone else's message arrives and you're looking at another
+// room or another app.
 let soundOn = true
 let audio = null
 let lastChime = 0
 function chime () {
   const now = Date.now()
-  if (!soundOn || now - lastChime < 1500) return   // a burst of messages = one chime
+  if (!soundOn || now - lastChime < 1500) return   // a burst of messages = one drop
   lastChime = now
   try {
     audio = audio || new AudioContext()
     const t = audio.currentTime
-    const out = audio.createGain()
-    out.gain.value = 0.12
-    out.connect(audio.destination)
-    for (const [freq, at] of [[659.25, 0], [987.77, 0.11]]) {   // E5, then B5
-      const osc = audio.createOscillator()
-      const g = audio.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      g.gain.setValueAtTime(0, t + at)
-      g.gain.linearRampToValueAtTime(1, t + at + 0.015)
-      g.gain.exponentialRampToValueAtTime(0.001, t + at + 0.9)
-      osc.connect(g)
-      g.connect(out)
-      osc.start(t + at)
-      osc.stop(t + at + 1)
-    }
+    const osc = audio.createOscillator()
+    const g = audio.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(900, t)
+    osc.frequency.exponentialRampToValueAtTime(340, t + 0.25)
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 0.4)
+    osc.connect(g)
+    g.connect(audio.destination)
+    osc.start(t)
+    osc.stop(t + 0.45)
   } catch {}
 }
 s.onSound((on) => { soundOn = on })
