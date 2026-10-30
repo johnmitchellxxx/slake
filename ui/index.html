@@ -2,12 +2,15 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: slakewall:">
   <title>Slake</title>
   <link rel="stylesheet" href="style.css">
   <style id="theme"></style>
 </head>
 <body>
+  <!-- Your wallpaper (only you see it), and a tint over it so text stays readable -->
+  <div id="wallLayer" class="wall" hidden></div>
+  <div id="wallDim" class="wall-dim" hidden></div>
   <!-- First launch: pick a name -->
   <section id="welcome" class="screen" hidden>
     <div class="card">
@@ -67,7 +70,7 @@
         </form>
         <div class="theme-row">
           <select id="themeSelect" aria-label="Theme"></select>
-          <button id="themesBtn" class="ghost" title="Open your themes folder">Edit</button>
+          <button id="themesBtn" class="ghost" title="Open the Theme Studio">Edit</button>
         </div>
         <div id="versionLine" class="version"></div>
       </footer>
@@ -145,6 +148,8 @@
   </div>
 
   <div id="toast" class="toast" hidden></div>
+  <script src="wallpapers.js"></script>
+  <script src="demo.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

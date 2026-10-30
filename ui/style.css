@@ -297,3 +297,9 @@ button.confirm { color: var(--danger) !important; }
 
 /* ---------- Version ---------- */
 .version { font-size: 11px; color: var(--muted); opacity: 0.7; padding: 0 2px; }
+
+/* ---------- Wallpaper ---------- */
+.wall, .wall-dim { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.wall { background-size: cover; background-position: center; }
+.wall-dim { background: var(--bg); }
+.screen { position: relative; z-index: 1; }

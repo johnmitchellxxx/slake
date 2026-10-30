@@ -119,7 +119,23 @@ Click a result to jump to it.
 
 ## Make it yours
 
-Click **Edit** next to the theme picker. That opens your themes folder.
+**Theme Studio:** pick **Make your own…** at the bottom of the theme list (or
+click **Edit** next to it). Start from any theme, then change colors, fonts
+(any font installed on your computer), text size, corners, spacing, picture
+shape, glow, grain, shadows, see-through panels, chat bubbles and cue numbers.
+The preview on the right updates as you go. Name it and **Save theme**; it
+goes in your list. Studio themes open back up in the Studio exactly as you
+left them. Themes are yours alone: nobody else sees them.
+
+**Backgrounds:** the Studio's **Default background** applies to every room
+that doesn't have its own. Built in: glass swirl, aurora, dusk, blueprint,
+dials and lake contours, or **+** to use your own picture. Blur and Dim keep
+text readable. To give one room its own background, right-click it →
+**Background…**. Changing the default never touches a room's own background.
+
+### Editing themes by hand
+
+In the Theme Studio, click **Open themes folder**.
 Each `.css` file in there is a theme; copy one, rename it, change the colors
 at the top, and save — the app repaints instantly. Included:
 

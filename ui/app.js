@@ -10,6 +10,7 @@ let membersOpen = false
 const unread = new Set()
 let pending = null      // file chosen but not sent yet: { path, name, size, ttl }
 let online = new Set()  // identity keys of people connected right now
+let walls = { default: { id: 'none' }, rooms: {} }   // your backgrounds (local only)
 let searching = false
 
 // Each person gets a stable color + emoji pair made from their key,
@@ -562,7 +563,16 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape' && membersOpen) closeMembers()
 })
 
+// ---------- Wallpaper ----------
+// Each room can have its own background; otherwise it uses your default.
+function applyWallpaper () {
+  const wp = (current && walls.rooms[current]) || walls.default
+  window.SlakeWallpapers.paint($('wallLayer'), $('wallDim'), wp)
+}
+s.onWallpapers((w) => { walls = w; applyWallpaper() })
+
 function renderAll () {
+  applyWallpaper()
   renderSidebar()
   renderHeader()
   renderMessages()
@@ -619,14 +629,16 @@ async function removePerson (r, key, name) {
 }
 
 function roomMenu (r) {
+  const bg = { id: 'background', label: 'Background…' }
   if (r.removed || r.closedAt) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
-  if (r.dm) return [{ id: 'closeDM', label: 'Close conversation' }]
-  if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }, { type: 'separator' }, { id: 'delete', label: 'Delete room…' }]
-  return [{ id: 'leave', label: 'Leave room…' }]
+  if (r.dm) return [bg, { type: 'separator' }, { id: 'closeDM', label: 'Close conversation' }]
+  if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }, bg, { type: 'separator' }, { id: 'delete', label: 'Delete room…' }]
+  return [bg, { type: 'separator' }, { id: 'leave', label: 'Leave room…' }]
 }
 
 async function runRoomChoice (r, choice) {
   if (choice === 'invite') await copyInvite(r)
+  if (choice === 'background') s.openStudio({ mode: 'room', room: r.id })
   if (choice === 'code') await showCode(r)
   if (choice === 'members') showMembers(r)
   if (choice === 'leave') await leave(r)
@@ -765,10 +777,19 @@ function renderThemes (themes, theme) {
     if (t === theme) o.selected = true
     sel.append(o)
   }
+  const make = el('option', null, 'Make your own…')
+  make.value = '__studio'
+  sel.append(make)
+  sel.dataset.current = theme
 }
-$('themesBtn').onclick = () => s.openThemes()
+$('themesBtn').onclick = () => s.openStudio({ mode: 'theme', edit: $('themeSelect').value })
 $('themeSelect').onchange = async (e) => {
   const t = e.target.value
+  if (t === '__studio') {
+    e.target.value = e.target.dataset.current || 'default'
+    s.openStudio({ mode: 'theme' })
+    return
+  }
   const r = await s.setTheme(t)
   applyTheme(r.css)
   renderThemes(r.themes, t)   // the one you just picked moves to the top
@@ -913,6 +934,7 @@ async function refresh () {
   rooms = st.rooms
   records = st.records
   online = new Set(st.online || [])
+  walls = st.wallpapers || walls
   soundOn = st.sound !== false
   rebuildAvatars()
   showVersion(st.version)

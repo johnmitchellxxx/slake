@@ -47,6 +47,23 @@ Themes can restyle anything. Useful hooks:
   cover it. Glass theme is retired until that's tested on a Mac.
 - Fonts: system fonts only (the page's security policy blocks web fonts).
 
+## Theme Studio and wallpapers
+
+- `ui/studio.html/.css/.js`: the Studio window. `ui/studio-gen.js` turns
+  settings into CSS and back; Studio themes keep their settings as JSON in a
+  `/* slake-studio {...} */` comment so they reopen exactly.
+- Preview: the Studio embeds `index.html#preview`; `ui/demo.js` gives it
+  sample data when there's no real app behind it, and repaints on
+  `postMessage({ type: 'slake-preview', css, wallpaper })`.
+- Fonts: a long list of common Mac/Windows fonts, filtered to those
+  installed (canvas width check). Plus System / Rounded / Serif / Monospace.
+- Wallpapers (`ui/wallpapers.js`): built-ins drawn in CSS/SVG; your own
+  pictures are resized and stored in `userData/wallpapers`, served as
+  `slakewall://w/<file>`. Settings: `wallpaper` (default) and
+  `roomWallpapers[roomId]`. The default never overwrites a room's own.
+- `SLAKE_SHOOT=<folder>` runs the real app, drives the Studio, saves a
+  theme, sets a room background and writes screenshots. Used to check UI.
+
 ## Releasing
 
 Bump `version` in `package.json`, commit, `git tag vX.Y.Z && git push --tags`.
@@ -58,17 +75,8 @@ before tagging: releases are public.
 
 - Login (name + password = identity) and device sync, so phones and second
   machines see your rooms. Planned for when there are more than ~5 users.
-- **Next up: Theme Studio.** "Make your own…" at the bottom of the theme
-  list opens a Studio window: start from any theme; colors; fonts listed from
-  the fonts installed on that computer (themes are local, no bundling);
-  shape/spacing; effects (glow, grain, see-through); layout toggles; live
-  preview; Save; optional Share as a file.
-  - **Wallpapers:** built-in set (glassy swirls, soft gradients, vague
-    mechanical/blueprint) or your own image, with blur/dim so text stays
-    readable. A **default wallpaper** for every room without its own, and
-    **per-room backgrounds** (right-click a room > Background…). Changing
-    the default applies to rooms without their own background and **never
-    overwrites a room's own background**. All local: only you see them.
+- Theme Studio and wallpapers are built (see below). Glass-style window
+  vibrancy is still off.
 - Plugins: only from the user's own plugins folder, never run from chat.
 - Phone app comes after login + device sync.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the

@@ -1,6 +1,7 @@
 // The desktop app wrapper: opens the window and hands things back and forth
 // between the engine (core.js) and the screen.
-const { app, BrowserWindow, ipcMain, Notification, shell, clipboard, Menu, dialog, Tray, nativeImage } = require('electron')
+const { app, BrowserWindow, ipcMain, Notification, shell, clipboard, Menu, dialog, Tray, nativeImage, protocol, net } = require('electron')
+const { pathToFileURL } = require('url')
 const path = require('path')
 const fs = require('fs')
 const { Slake } = require('./core')
@@ -9,6 +10,9 @@ const { Slake } = require('./core')
 const profile = (process.argv.find((a) => a.startsWith('--profile=')) || '').split('=')[1]
 if (profile) app.setPath('userData', path.join(app.getPath('appData'), 'Slake-' + profile))
 app.setName(profile ? `Slake (${profile})` : 'Slake')
+
+// Your own wallpaper pictures are served to the window as slakewall://w/<file>.
+protocol.registerSchemesAsPrivileged([{ scheme: 'slakewall', privileges: { standard: true, secure: true, supportFetchAPI: true } }])
 
 // Only one Slake per person. Opening it again just brings the window back.
 if (!app.requestSingleInstanceLock()) app.exit(0)
@@ -106,6 +110,31 @@ async function checkForUpdate () {
   } catch {}
 }
 
+let studioOpts = {}
+function openStudio (opts) {
+  studioOpts = opts
+  if (studio && !studio.isDestroyed()) {
+    studio.webContents.reload()
+    studio.show()
+    studio.focus()
+    return
+  }
+  studio = new BrowserWindow({
+    width: 1180,
+    height: 760,
+    minWidth: 960,
+    minHeight: 600,
+    title: 'Theme Studio',
+    backgroundColor: '#14151a',
+    parent: undefined,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  studio.loadFile(path.join(__dirname, 'ui', 'studio.html'))
+  studio.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  studio.webContents.on('will-navigate', (e) => e.preventDefault())
+  studio.on('closed', () => { studio = null })
+}
+
 function makeTray () {
   const img = isMac
     ? nativeImage.createFromPath(path.join(__dirname, 'assets', 'trayTemplate.png'))
@@ -186,12 +215,43 @@ function themeCSS (name) {
 
 // A theme can ask for a see-through window by including the words
 // "slake: glass" anywhere (usually in its top comment). Mac only.
-function applyWindowLook (css) {
-  if (!win || win.isDestroyed()) return
-  const glass = isMac && /slake:\s*glass/i.test(css || '')
-  win.setVibrancy(glass ? 'under-window' : null)
-  win.setBackgroundColor(glass ? '#00000000' : '#16161d')
+function applyWindowLook () {
+  // Turned off: switching vibrancy on at runtime gave a plain grey window on
+  // a real Mac. See NOTES.md before bringing it back.
 }
+
+// ---------- Wallpapers (local only: nobody else sees your backgrounds) ----------
+const wallDir = () => path.join(app.getPath('userData'), 'wallpapers')
+const DEFAULT_WALL = { id: 'none', blur: 0, dim: 0.35 }
+
+function wallpapers () {
+  const s = readSettings()
+  return { default: s.wallpaper || DEFAULT_WALL, rooms: s.roomWallpapers || {} }
+}
+
+function cleanWall (wp) {
+  if (!wp || typeof wp !== 'object') return null
+  const id = String(wp.id || 'none')
+  if (!/^(none|[a-z]+|file:[A-Za-z0-9._-]+)$/.test(id)) return null
+  return { id, blur: Math.max(0, Math.min(40, Number(wp.blur) || 0)), dim: Math.max(0, Math.min(0.9, wp.dim == null ? 0.35 : Number(wp.dim))) }
+}
+
+// scope is 'default' or a room id. Changing the default never touches a
+// room that has its own background.
+function setWallpaper (scope, wp) {
+  const s = readSettings()
+  if (scope === 'default') s.wallpaper = cleanWall(wp) || DEFAULT_WALL
+  else {
+    s.roomWallpapers = s.roomWallpapers || {}
+    if (wp === null) delete s.roomWallpapers[scope]   // back to the default
+    else s.roomWallpapers[scope] = cleanWall(wp)
+  }
+  writeSettings(s)
+  send('wallpapers', wallpapers())
+}
+
+let studio = null
+function sendStudio (channel, data) { if (studio && !studio.isDestroyed()) studio.webContents.send(channel, data) }
 
 function send (channel, data) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, data)
@@ -267,10 +327,15 @@ function state () {
     records[room.id] = [...room.records.values()].sort((a, b) => a.ts - b.ts).map((r) => present(room, r))
   }
   const s = readSettings()
-  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme), version: versionInfo(), sound: s.sound !== false }
+  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme), version: versionInfo(), sound: s.sound !== false, wallpapers: wallpapers() }
 }
 
 app.whenReady().then(async () => {
+  fs.mkdirSync(wallDir(), { recursive: true })
+  protocol.handle('slakewall', (req) => {
+    const name = path.basename(new URL(req.url).pathname).replace(/[^A-Za-z0-9._-]/g, '')
+    return net.fetch(pathToFileURL(path.join(wallDir(), name)).toString())
+  })
   seedThemes()
   slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data') })
   await slake.start()
@@ -404,6 +469,47 @@ app.whenReady().then(async () => {
     })
     return r.response === 0
   })
+  // ---------- Theme Studio ----------
+  handle('openStudio', (opts) => openStudio(opts || {}))
+  handle('studioInit', () => {
+    const s = readSettings()
+    const room = studioOpts.room && slake.rooms.get(studioOpts.room)
+    return {
+      mode: studioOpts.mode || 'theme',
+      room: room ? { id: room.id, title: room.title, dm: !!room.dm } : null,
+      themes: listThemes().map((t) => ({ name: t, css: themeCSS(t) })),
+      current: studioOpts.edit || s.theme || 'default',
+      wallpapers: wallpapers(),
+      customWalls: fs.readdirSync(wallDir()).filter((f) => /\.(jpg|png)$/.test(f))
+    }
+  })
+  handle('saveTheme', ({ name, css }) => {
+    let slug = String(name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    if (!slug || slug === 'default') throw new Error('Give your theme a name')
+    const bundled = fs.readdirSync(path.join(__dirname, 'themes')).map((f) => f.slice(0, -4))
+    if (bundled.includes(slug)) slug += '-mine'   // never collide with a theme Slake ships
+    fs.writeFileSync(path.join(themesDir(), slug + '.css'), String(css || ''))
+    const st = readSettings()
+    const recentThemes = [slug, ...(st.recentThemes || []).filter((x) => x !== slug)].slice(0, 50)
+    writeSettings({ ...st, theme: slug, recentThemes })
+    send('theme', { themes: listThemes(), theme: slug, css: themeCSS(slug) })
+    return slug
+  })
+  handle('setWallpaper', ({ scope, wp }) => setWallpaper(scope, wp))
+  handle('pickWallpaper', async () => {
+    const r = await dialog.showOpenDialog(studio || win, { properties: ['openFile'], filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'webp', 'heic', 'gif'] }] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const img = nativeImage.createFromPath(r.filePaths[0])
+    if (img.isEmpty()) throw new Error("Couldn't read that picture")
+    const { width } = img.getSize()
+    const sized = width > 2560 ? img.resize({ width: 2560, quality: 'best' }) : img
+    const data = sized.toJPEG(86)
+    const name = require('crypto').createHash('sha256').update(data).digest('hex').slice(0, 16) + '.jpg'
+    fs.writeFileSync(path.join(wallDir(), name), data)
+    return 'file:' + name
+  })
+  handle('closeStudio', () => { if (studio && !studio.isDestroyed()) studio.close() })
+
   handle('setTheme', (t) => {
     const st = readSettings()
     const recentThemes = [t, ...(st.recentThemes || []).filter((x) => x !== t)].slice(0, 50)
@@ -450,6 +556,58 @@ app.whenReady().then(async () => {
   makeTray()
   checkForUpdate()
   setInterval(checkForUpdate, 6 * 60 * 60 * 1000)
+
+  // Screenshot run for checking the Studio: `SLAKE_SHOOT=<folder>`.
+  if (process.env.SLAKE_SHOOT) {
+    const out = process.env.SLAKE_SHOOT
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+    const snap = async (w, name) => fs.writeFileSync(path.join(out, name), (await w.webContents.capturePage()).toPNG())
+    win.webContents.once('did-finish-load', async () => {
+      try {
+        if (!slake.me.name) slake.setName('John')
+        await slake.createRoom('load-in', { waitForNetwork: false })
+        await slake.createRoom('weekend', { waitForNetwork: false })
+        win.webContents.reload()
+        await wait(1500)
+        openStudio({ mode: 'theme' })
+        await wait(3000)
+        await snap(studio, '1-studio.png')
+        const js = (code) => studio.webContents.executeJavaScript(code)
+        await js(`(() => {
+          const set = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input')) }
+          document.querySelectorAll('.wall-thumb')[1].click()
+          set('blur', 6); set('dim', 30); set('seeThrough', 60); set('glow', 50); set('radius', 16)
+          document.getElementById('bubbles').click()
+          document.querySelectorAll('.slot')[3].click()
+          return document.querySelectorAll('#fontList li').length
+        })()`).then((n) => console.log('SLAKE_SHOOT fonts listed:', n))
+        await wait(1200)
+        await snap(studio, '2-studio-tweaked.png')
+        await js(`document.getElementById('themeName').value = 'Night Swirl'; document.getElementById('save').click()`)
+        await wait(1500)
+        console.log('SLAKE_SHOOT saved theme file:', fs.existsSync(path.join(themesDir(), 'night-swirl.css')), 'setting:', readSettings().theme)
+        await snap(win, '3-main-with-theme.png')
+        const roomId = [...slake.rooms.values()].find((r) => r.title === 'weekend').id
+        openStudio({ mode: 'room', room: roomId })
+        await wait(3000)
+        await studio.webContents.executeJavaScript(`document.querySelectorAll('.wall-thumb')[5].click(); document.getElementById('useRoom').click()`)
+        await wait(1200)
+        console.log('SLAKE_SHOOT room background:', JSON.stringify(readSettings().roomWallpapers), 'default:', JSON.stringify(readSettings().wallpaper))
+        win.webContents.executeJavaScript(`[...document.querySelectorAll('.space li')].find(li => li.textContent.includes('weekend')).click()`)
+        await wait(800)
+        await snap(win, '4-main-room-background.png')
+        win.webContents.executeJavaScript(`[...document.querySelectorAll('.space li')].find(li => li.textContent.includes('load-in')).click()`)
+        await wait(800)
+        await snap(win, '5-main-default-background.png')
+        // reopen the Studio on the saved theme: settings should come back exactly
+        openStudio({ mode: 'theme', edit: 'night-swirl' })
+        await wait(2500)
+        console.log('SLAKE_SHOOT reopened:', await studio.webContents.executeJavaScript(`JSON.stringify({ name: document.getElementById('themeName').value, see: document.getElementById('seeThrough').value, glow: document.getElementById('glow').value, bubbles: document.getElementById('bubbles').checked })`))
+      } catch (e) { console.log('SLAKE_SHOOT error', e.stack) }
+      quitting = true
+      app.quit()
+    })
+  }
 
   // Build check: `SLAKE_SMOKE=1` starts everything, reports, and quits.
   if (process.env.SLAKE_SMOKE) {

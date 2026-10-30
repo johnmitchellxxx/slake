@@ -45,5 +45,13 @@ contextBridge.exposeInMainWorld('slake', {
   update: () => call('update'),
   openUpdate: () => call('openUpdate'),
   onUpdate: (fn) => ipcRenderer.on('update', (_e, u) => fn(u)),
-  onSound: (fn) => ipcRenderer.on('sound', (_e, on) => fn(on))
+  onSound: (fn) => ipcRenderer.on('sound', (_e, on) => fn(on)),
+  // Theme Studio and wallpapers
+  openStudio: (opts) => call('openStudio', opts),
+  studioInit: () => call('studioInit'),
+  saveTheme: (name, css) => call('saveTheme', { name, css }),
+  setWallpaper: (scope, wp) => call('setWallpaper', { scope, wp }),
+  pickWallpaper: () => call('pickWallpaper'),
+  closeStudio: () => call('closeStudio'),
+  onWallpapers: (fn) => ipcRenderer.on('wallpapers', (_e, w) => fn(w))
 })
