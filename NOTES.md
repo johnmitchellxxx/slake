@@ -58,7 +58,16 @@ before tagging: releases are public.
 
 - Login (name + password = identity) and device sync, so phones and second
   machines see your rooms. Planned for when there are more than ~5 users.
-- **Next up: a theme builder** (make and tweak themes inside Slake).
+- **Next up: Theme Studio.** "Make your own…" at the bottom of the theme
+  list opens a Studio window: start from any theme; colors; fonts listed from
+  the fonts installed on that computer (themes are local, no bundling);
+  shape/spacing; effects (glow, grain, see-through); layout toggles; live
+  preview; Save; optional Share as a file.
+  - **Wallpapers:** built-in set (glassy swirls, soft gradients, vague
+    mechanical/blueprint) or your own image, with blur/dim so text stays
+    readable. A **default wallpaper** for every room without its own, and
+    **per-room backgrounds** (right-click a room > Background…). All local:
+    only you see your backgrounds.
 - Plugins: only from the user's own plugins folder, never run from chat.
 - Phone app comes after login + device sync.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
