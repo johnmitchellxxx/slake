@@ -830,33 +830,47 @@ s.onUpdate(showUpdate)
 s.update().then(showUpdate).catch(() => {})
 
 // ---------- Message sound ----------
-// One soft water drop, made right here (no sound file): a quiet tone that
-// eases from about 600 Hz down to 260 Hz, very quietly, and fades out.
+// A barely-there puff of air, made right here (no sound file): a short burst
+// of soft noise, filtered to an airy "fff", that swells in slowly and fades.
 // Plays when someone else's message arrives and you're looking at another
 // room or another app.
 let soundOn = true
 let audio = null
+let noise = null
 let lastChime = 0
 function chime () {
   const now = Date.now()
-  if (!soundOn || now - lastChime < 1500) return   // a burst of messages = one drop
+  if (!soundOn || now - lastChime < 1500) return   // a burst of messages = one puff
   lastChime = now
   try {
     audio = audio || new AudioContext()
+    if (!noise) {
+      noise = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.8), audio.sampleRate)
+      const d = noise.getChannelData(0)
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    }
     const t = audio.currentTime
-    const osc = audio.createOscillator()
+    const src = audio.createBufferSource()
+    src.buffer = noise
+    const low = audio.createBiquadFilter()      // airy at first, softening as it fades
+    low.type = 'lowpass'
+    low.Q.value = 0.5
+    low.frequency.setValueAtTime(3600, t)
+    low.frequency.exponentialRampToValueAtTime(1400, t + 0.5)
+    const high = audio.createBiquadFilter()     // no low rumble
+    high.type = 'highpass'
+    high.Q.value = 0.5
+    high.frequency.value = 700
     const g = audio.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(600, t)
-    osc.frequency.exponentialRampToValueAtTime(260, t + 0.35)
-    // Swell in slowly (no click at the start), then fade.
     g.gain.setValueAtTime(0, t)
-    g.gain.setValueCurveAtTime(new Float32Array([0, 0.004, 0.013, 0.024, 0.03]), t, 0.08)
-    g.gain.exponentialRampToValueAtTime(0.0003, t + 0.7)
-    osc.connect(g)
+    g.gain.setValueCurveAtTime(new Float32Array([0, 0.004, 0.013, 0.022, 0.025]), t, 0.1)
+    g.gain.exponentialRampToValueAtTime(0.0002, t + 0.7)
+    src.connect(low)
+    low.connect(high)
+    high.connect(g)
     g.connect(audio.destination)
-    osc.start(t)
-    osc.stop(t + 0.75)
+    src.start(t)
+    src.stop(t + 0.75)
   } catch {}
 }
 s.onSound((on) => { soundOn = on })
