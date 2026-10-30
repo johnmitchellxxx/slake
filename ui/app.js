@@ -849,13 +849,14 @@ function chime () {
     osc.type = 'sine'
     osc.frequency.setValueAtTime(600, t)
     osc.frequency.exponentialRampToValueAtTime(260, t + 0.35)
+    // Swell in slowly (no click at the start), then fade.
     g.gain.setValueAtTime(0, t)
-    g.gain.linearRampToValueAtTime(0.03, t + 0.02)
-    g.gain.exponentialRampToValueAtTime(0.0003, t + 0.6)
+    g.gain.setValueCurveAtTime(new Float32Array([0, 0.004, 0.013, 0.024, 0.03]), t, 0.08)
+    g.gain.exponentialRampToValueAtTime(0.0003, t + 0.7)
     osc.connect(g)
     g.connect(audio.destination)
     osc.start(t)
-    osc.stop(t + 0.65)
+    osc.stop(t + 0.75)
   } catch {}
 }
 s.onSound((on) => { soundOn = on })
