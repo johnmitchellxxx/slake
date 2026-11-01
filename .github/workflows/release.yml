@@ -14,6 +14,9 @@ jobs:
   build:
     strategy:
       fail-fast: false
+      # One at a time: if both builds create the release page at once, the
+      # Mac one loses the race and its installer never gets attached.
+      max-parallel: 1
       matrix:
         include:
           - os: macos-latest
