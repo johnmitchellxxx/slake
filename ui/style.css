@@ -309,3 +309,29 @@ button.confirm { color: var(--danger) !important; }
 .wall { background-size: cover; background-position: center; }
 .wall-dim { background: var(--bg); }
 .screen { position: relative; z-index: 1; }
+
+/* ---------- Phones ---------- */
+/* Narrow screens show your rooms, or one room full screen with a back arrow. */
+.back { display: none; }
+@media (max-width: 640px) {
+  .screen { height: 100dvh; }
+  #chat { grid-template-columns: 1fr; }
+  #chat .room { display: none; }
+  body.in-room #chat .sidebar { display: none; }
+  body.in-room #chat .room { display: flex; }
+  .sidebar { border-right: 0; padding-top: env(safe-area-inset-top); }
+  .brand { padding-top: 14px; }
+  .space li { padding: 10px 12px; font-size: 17px; }
+  .back { display: inline-flex; align-items: center; justify-content: center; font-size: 34px; line-height: 1; padding: 0 12px 4px 0; margin-right: 2px; color: var(--accent); }
+  .room-head { padding: calc(10px + env(safe-area-inset-top)) 14px 10px 10px; justify-content: flex-start; }
+  .room-title { flex: 1; }
+  .messages { padding: 10px 14px; }
+  .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .composer textarea, input, select { font-size: 16px; }   /* stops iPhone zooming in */
+  .members { position: fixed; inset: 0; width: auto; z-index: 30; border-left: 0; padding-top: calc(14px + env(safe-area-inset-top)); }
+  .file { max-width: 100%; }
+  .foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .no-room { padding: 32px 20px; }
+  .card { padding: 0 6px; }
+  .card h1 { font-size: 56px; }
+}

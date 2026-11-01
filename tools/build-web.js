@@ -60,7 +60,16 @@ const version = require(path.join(root, 'package.json')).version
   // password hash (WebAssembly).
   html = html.replace(/<meta http-equiv="Content-Security-Policy" content="[^"]*">/,
     `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws:; script-src 'self' 'wasm-unsafe-eval'">`)
-  html = html.replace('<head>', '<head>\n  <meta name="viewport" content="width=device-width, initial-scale=1">')
+  html = html.replace('<head>', `<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Slake">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon-192.png">`)
   html = html.replace(/(\s*<script src="wallpapers.js"><\/script>)/, `\n  <script src="version.js"></script>\n  <script src="slake-web.js"></script>$1`)
   fs.writeFileSync(path.join(out, 'index.html'), html)
   fs.writeFileSync(path.join(out, 'version.js'), `window.SLAKE_VERSION = ${JSON.stringify(version)}\n`)
@@ -71,6 +80,38 @@ const version = require(path.join(root, 'package.json')).version
     themes[f.slice(0, -4)] = fs.readFileSync(path.join(root, 'themes', f), 'utf8')
   }
   fs.writeFileSync(path.join(out, 'themes.json'), JSON.stringify(themes))
+
+  // Home-screen icon and app details, and the offline helper.
+  const icon = path.join(root, 'build', 'icon.png')
+  for (const size of [180, 192, 512]) {
+    require('child_process').execFileSync('python3', ['-c', `from PIL import Image; Image.open(${JSON.stringify(icon)}).convert('RGBA').resize((${size},${size}), Image.LANCZOS).save(${JSON.stringify(path.join(out, 'icon-' + size + '.png'))})`])
+  }
+  fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
+    name: 'Slake',
+    short_name: 'Slake',
+    description: "Chat that lives on your friends' computers. No server, no bill.",
+    start_url: './',
+    scope: './',
+    display: 'standalone',
+    background_color: '#16161d',
+    theme_color: '#16161d',
+    icons: [
+      { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+    ]
+  }, null, 2))
+  fs.writeFileSync(path.join(out, 'sw.js'), `// Keeps a copy of the app's own files so it opens even on a bad connection.
+// Always tries the network first, so updates show up right away.
+const CACHE = 'slake-${version}'
+self.addEventListener('install', (e) => { self.skipWaiting() })
+self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())) })
+self.addEventListener('fetch', (e) => {
+  const u = new URL(e.request.url)
+  if (e.request.method !== 'GET' || u.origin !== location.origin) return
+  e.respondWith(fetch(e.request).then((r) => { const c = r.clone(); caches.open(CACHE).then((cache) => cache.put(e.request, c)); return r }).catch(() => caches.match(e.request)))
+})
+`)
 
   // Theme preview at /themes/
   require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build-web-preview.js'), path.join(out, 'themes')], { stdio: 'ignore' })

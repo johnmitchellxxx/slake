@@ -197,6 +197,33 @@ function menu (items) {
 const lastPointer = { x: 0, y: 0 }
 document.addEventListener('contextmenu', (e) => { lastPointer.x = e.clientX; lastPointer.y = e.clientY }, true)
 
+// Phones have no right-click: press and hold instead.
+let hold = null
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length !== 1 || e.target.closest('input, textarea')) return
+  const t = e.touches[0]
+  const target = e.target
+  hold = { x: t.clientX, y: t.clientY, timer: setTimeout(() => {
+    hold.fired = true
+    if (navigator.vibrate) navigator.vibrate(10)
+    target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: hold.x, clientY: hold.y }))
+  }, 520) }
+}, { passive: true })
+document.addEventListener('touchmove', (e) => {
+  if (!hold) return
+  const t = e.touches[0]
+  if (Math.abs(t.clientX - hold.x) > 10 || Math.abs(t.clientY - hold.y) > 10) { clearTimeout(hold.timer); hold = null }
+}, { passive: true })
+document.addEventListener('touchend', (e) => {
+  if (!hold) return
+  clearTimeout(hold.timer)
+  if (hold.fired) e.preventDefault()   // don't also "tap" what you held
+  hold = null
+})
+
+// Add to Home Screen: a small helper so it opens like an app.
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {})
+
 const style = document.createElement('style')
 style.textContent = `
 .web-menu { position: fixed; z-index: 50; min-width: 190px; padding: 5px; border-radius: 10px;
@@ -206,7 +233,10 @@ style.textContent = `
   border-radius: 6px; padding: 7px 10px; font: inherit; font-weight: 400; box-shadow: none; text-transform: none; letter-spacing: 0; filter: none; }
 .web-menu button:hover:not(:disabled) { background: #3b82f6; color: #fff; }
 .web-menu button:disabled { opacity: .4; }
-.web-menu hr { border: 0; border-top: 1px solid rgba(255,255,255,.12); margin: 4px 6px; }`
+.web-menu hr { border: 0; border-top: 1px solid rgba(255,255,255,.12); margin: 4px 6px; }
+@media (max-width: 640px) { .web-menu { min-width: 230px; } .web-menu button { padding: 12px 12px; font-size: 16px; } }
+.space li, .msg, .room-head, .member { -webkit-touch-callout: none; }
+@media (hover: none) { .space li, .room-head { -webkit-user-select: none; user-select: none; } }`
 document.head.append(style)
 
 // ---------- What the screen can call ----------

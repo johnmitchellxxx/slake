@@ -262,15 +262,20 @@ function openRoom (id) {
   current = id
   unread.delete(id)
   if (!roomById(id)) current = null
+  document.body.classList.toggle('in-room', !!current)   // phones: show the room full screen
   renderAll()
-  if (current) $('text').focus()
+  if (current && !phone()) $('text').focus()
 }
+
+// Phone-sized screens show either your rooms or one room, with a back arrow.
+const phone = () => window.matchMedia('(max-width: 640px)').matches
+$('backBtn').onclick = () => { document.body.classList.remove('in-room'); $('avatarPicker').hidden = true }
 
 function renderHeader () {
   const r = roomById(current)
   $('noRoom').hidden = !!r
   $('roomView').hidden = !r
-  if (!r) return
+  if (!r) { document.body.classList.remove('in-room'); return }
   $('roomName').textContent = r.title
   document.querySelector('.room-head .hash').hidden = r.dm
   if (r.dm) {
