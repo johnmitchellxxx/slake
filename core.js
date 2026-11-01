@@ -148,9 +148,11 @@ function newCode () {
   return [...bytes].map((b) => CODE_CHARS[b % CODE_CHARS.length]).join('')
 }
 
-function codeSeed (code) {
+// The slow hash (argon2id, 3 passes, 64 MB). Browsers swap in a faster
+// implementation of the exact same thing.
+async function defaultKdf (password, salt) {
   const out = Buffer.alloc(32)
-  sodium.crypto_pwhash(out, Buffer.from(code), CODE_SALT, 3, sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, sodium.crypto_pwhash_ALG_ARGON2ID13)
+  sodium.crypto_pwhash(out, Buffer.from(password), salt, 3, sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, sodium.crypto_pwhash_ALG_ARGON2ID13)
   return out
 }
 
@@ -176,12 +178,7 @@ function openBytes (box, curve) {
 
 function loginName (name) { return String(name || '').trim().toLowerCase() }
 
-function lockerFrom (name, password) {
-  const salt = nodeCrypto.createHash('sha256').update('slake-login-v1:' + loginName(name)).digest().subarray(0, 16)
-  const seed = Buffer.alloc(32)
-  sodium.crypto_pwhash(seed, Buffer.from(String(password)), salt, 3, sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, sodium.crypto_pwhash_ALG_ARGON2ID13)
-  return lockerFromSeed(seed)
-}
+const loginSalt = (name) => nodeCrypto.createHash('sha256').update('slake-login-v1:' + loginName(name)).digest().subarray(0, 16)
 
 function lockerFromSeed (seed) {
   const key = hmac(seed, 'slake-locker-key')
@@ -236,8 +233,9 @@ function parseInvite (str) {
 // ---------- The engine ----------
 
 class Slake extends EventEmitter {
-  constructor ({ dataDir, makeSwarm } = {}) {
+  constructor ({ dataDir, makeSwarm, kdf } = {}) {
     super()
+    this.kdf = kdf || defaultKdf
     this.dataDir = dataDir
     this.roomsDir = path.join(dataDir, 'rooms')
     this.makeSwarm = makeSwarm || (() => new Hyperswarm())
@@ -547,7 +545,7 @@ class Slake extends EventEmitter {
     if (room.owner !== this.identity.publicKey) throw new Error('Only the owner can invite people')
     if (room.dm) throw new Error('Direct messages are just the two of you')
     const code = newCode()
-    const seed = codeSeed(code)
+    const seed = await this.kdf(Buffer.from(code), CODE_SALT)
     const label = hmac(seed, 'slake-knock-label').toString('hex')
     const topic = hc.discoveryKey(seed)
     const entry = { code, roomId, seed, topic, expires: this.now() + CODE_TTL }
@@ -567,11 +565,11 @@ class Slake extends EventEmitter {
   }
 
   // Use a 5-character code someone gave you.
-  joinWithCode (str, { timeout = 60000 } = {}) {
+  async joinWithCode (str, { timeout = 60000 } = {}) {
     this._needName()
     const code = normalizeCode(str)
-    if (!code) return Promise.reject(new Error('Codes are 5 letters and numbers, like K7Q2M'))
-    const seed = codeSeed(code)
+    if (!code) throw new Error('Codes are 5 letters and numbers, like K7Q2M')
+    const seed = await this.kdf(Buffer.from(code), CODE_SALT)
     const label = hmac(seed, 'slake-knock-label').toString('hex')
     const topic = hc.discoveryKey(seed)
     return new Promise((resolve, reject) => {
@@ -638,7 +636,7 @@ class Slake extends EventEmitter {
     if (this._login) throw new Error("You're in the middle of logging in")
     if (!String(password || '')) throw new Error('Type a password')
     const old = this.locker
-    this.locker = { ...lockerFrom(this.identity.name, password), loginName: this.identity.name, left: old ? old.left : {} }
+    this.locker = { ...lockerFromSeed(await this.kdf(Buffer.from(String(password)), loginSalt(this.identity.name))), loginName: this.identity.name, left: old ? old.left : {} }
     this._saveLocker()
     if (old && old.label !== this.locker.label) await this.swarm.leave(old.topic).catch(() => {})
     await this.swarm.join(this.locker.topic, { server: true, client: true }).flushed()
@@ -649,11 +647,13 @@ class Slake extends EventEmitter {
 
   // Log in on a fresh device: find one of your other devices and copy your
   // identity and rooms from it. Waits until one answers.
-  login (name, password, { timeout = 120000 } = {}) {
-    if (this.rooms.size || this.locker) return Promise.reject(new Error('This Slake is already set up as someone'))
-    if (!String(name || '').trim()) return Promise.reject(new Error('Type your name'))
-    if (!password) return Promise.reject(new Error('Type your password'))
-    this.locker = { ...lockerFrom(name, password), loginName: String(name).trim().slice(0, 40), left: {} }
+  async login (name, password, { timeout = 120000 } = {}) {
+    if (this.rooms.size || this.locker || this._login) throw new Error('This Slake is already set up as someone')
+    if (!String(name || '').trim()) throw new Error('Type your name')
+    if (!password) throw new Error('Type your password')
+    const seed = await this.kdf(Buffer.from(String(password)), loginSalt(name))
+    if (this.rooms.size || this.locker) throw new Error('This Slake is already set up as someone')
+    this.locker = { ...lockerFromSeed(seed), loginName: String(name).trim().slice(0, 40), left: {} }
     return new Promise((resolve, reject) => {
       const login = { resolve, reject }
       login.timer = setTimeout(() => this._endLogin(new Error("Couldn't find your other devices. Check your name and password, and make sure Slake is open on a computer where you already use it.")), timeout)

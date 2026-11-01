@@ -11,7 +11,24 @@ permissions:
   contents: write
 
 jobs:
+  # A published release needs its version tag (like v0.8.0) to exist first.
+  # Make it from package.json if it isn't there yet, then build.
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make the version tag
+        run: |
+          V="v$(node -p "require('./package.json').version")"
+          git fetch --tags --quiet
+          if git rev-parse -q --verify "refs/tags/$V" >/dev/null; then
+            echo "$V already exists"
+          else
+            git tag "$V" && git push origin "$V" && echo "Made $V"
+          fi
+
   build:
+    needs: tag
     strategy:
       fail-fast: false
       # One at a time: if both builds create the release page at once, the
