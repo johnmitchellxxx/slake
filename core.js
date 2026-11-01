@@ -209,20 +209,24 @@ function openLockBox (enc, b64) {
 }
 
 // ---------- Invites ----------
+// base64url by hand (the browser's Buffer doesn't know it); same output as Node's.
+const toB64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const fromB64url = (str) => Buffer.from(String(str).replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+
 // slake:<base64url of {v, r: room id, t: title, o: owner key, n: owner name, e: epoch, k: room key}>
 
 function makeInvite (room) {
   const e = room.epoch
   const payload = { v: 2, r: room.id, t: room.title, o: room.owner, n: room.ownerName, e, k: room.keys[e] }
   if (room.dm) payload.d = 1
-  return 'slake:' + Buffer.from(JSON.stringify(payload)).toString('base64url')
+  return 'slake:' + toB64url(Buffer.from(JSON.stringify(payload)))
 }
 
 function parseInvite (str) {
   const m = /^slake:([A-Za-z0-9_-]+)$/.exec(String(str || '').trim())
   if (!m) return null
   try {
-    const p = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'))
+    const p = JSON.parse(fromB64url(m[1]).toString('utf8'))
     if (p.v !== 2 || !ID_RE.test(p.r) || !KEY_RE.test(p.o) || !KEY_RE.test(p.k) || !isInt(p.e)) return null
     const title = String(p.t || 'room').slice(0, 40) || 'room'
     const ownerName = String(p.n || 'Someone').slice(0, 40) || 'Someone'

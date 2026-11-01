@@ -1,0 +1,32 @@
+/* After Hours — neon signs after close. Pink and cyan tubes glowing in the
+   dark; the wordmark buzzes on once when Slake opens. */
+:root {
+  --bg: #0c0714;
+  --panel: #0a0611;
+  --panel-2: #1b1029;
+  --text: #f2e9ff;
+  --muted: #8b7aa6;
+  --accent: #ff3d9a;
+  --accent-text: #1a0010;
+  --line: #2a1a3d;
+  --radius: 10px;
+  --font: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+  --wordmark: "Avenir Next", Futura, "Segoe UI", sans-serif;
+}
+
+.wordmark {
+  font-style: normal; font-weight: 600; letter-spacing: 0.06em; color: #ffe0f0;
+  text-shadow: 0 0 3px #ff3d9a, 0 0 10px #ff3d9a, 0 0 26px #ff3d9a;
+  animation: buzz 1.4s steps(1) 1;
+}
+@keyframes buzz { 0% { opacity: 0.2 } 12% { opacity: 1 } 18% { opacity: 0.35 } 26% { opacity: 1 } 40% { opacity: 0.6 } 46%, 100% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .wordmark { animation: none; } }
+
+.room-title > div:first-child { color: #e2fbff; text-shadow: 0 0 6px #22d3ee, 0 0 18px #22d3ee; }
+.hash { color: #22d3ee; }
+.sidebar { border-right-color: #3a1f55; box-shadow: 1px 0 30px rgba(255, 61, 154, 0.1); }
+.space li.active { background: transparent; color: #ffe0f0; box-shadow: inset 0 0 0 1px #ff3d9a, 0 0 16px rgba(255, 61, 154, 0.4); }
+.name { text-shadow: 0 0 10px rgba(255, 61, 154, 0.45); }
+button:not(.ghost):not(.secondary) { box-shadow: 0 0 18px rgba(255, 61, 154, 0.45); }
+.composer textarea:focus { border-color: #22d3ee; box-shadow: 0 0 18px rgba(34, 211, 238, 0.3); }
+.avatar .on { background: #22d3ee; box-shadow: 0 0 0 2px var(--bg), 0 0 8px #22d3ee; }

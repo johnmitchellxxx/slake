@@ -1,6 +1,6 @@
 {
   "name": "slake",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Serverless peer-to-peer chat: everyone has a space, rooms live in spaces.",
   "main": "main.js",
   "scripts": {
@@ -16,9 +16,17 @@
     "sodium-universal": "^5.0.1"
   },
   "devDependencies": {
+    "@noble/hashes": "1.8",
+    "buffer": "^6.0.3",
     "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.24.2",
+    "events": "^3.3.0",
+    "hash-wasm": "4.12",
     "hyperdht": "^6.35.0",
-    "electron-builder": "^26.18.0"
+    "path-browserify": "^1.0.1",
+    "sodium-javascript": "^0.8.0",
+    "trystero": "^0.21.8"
   },
   "productName": "Slake",
   "author": "Mr. Mitchell",

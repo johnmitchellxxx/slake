@@ -1,0 +1,79 @@
+/* Visionary — Seal Blue and Navy, with Crimson Pink.
+   The "premium" look: a soft sky gradient, frosted glass panels,
+   light big type with an italic kick, pink pill buttons.
+   Colors: #DBF2FC seal blue · #072D59 navy · #FD6E88 crimson pink. */
+:root {
+  --bg: #eaf7fd;
+  --panel: rgba(255, 255, 255, 0.5);
+  --panel-2: rgba(255, 255, 255, 0.7);
+  --text: #072d59;
+  --muted: #5d7899;
+  --accent: #fd6e88;
+  --accent-text: #fff;
+  --line: rgba(7, 45, 89, 0.1);
+  --radius: 16px;
+  --font: "Avenir Next", Avenir, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --wordmark: "Avenir Next", Avenir, "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --msg-size: 15px;
+}
+
+/* The sky: seal blue up top, a pink haze, navy deep in the corner */
+body {
+  background:
+    radial-gradient(ellipse 45% 55% at 100% 100%, rgba(7, 45, 89, 0.55), transparent 70%),
+    radial-gradient(ellipse 35% 45% at 88% 70%, rgba(253, 110, 136, 0.28), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 20% 0%, #ffffff, transparent 70%),
+    linear-gradient(180deg, #dbf2fc 0%, #e4f3fb 50%, #c9def0 100%);
+  background-attachment: fixed;
+}
+
+/* Frosted glass */
+.sidebar, .members, .search, .pending, .dialog {
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+  border-color: rgba(255, 255, 255, 0.75);
+}
+.sidebar .brand, .sidebar .foot { border-color: rgba(7, 45, 89, 0.08); }
+
+/* Type: light and big, with an italic kick */
+.wordmark { font-family: var(--wordmark); font-style: italic; font-weight: 200; letter-spacing: -0.03em; color: var(--text); }
+.wordmark.small { font-size: 38px; line-height: 1; }
+.room-head { border-bottom: 0; padding-top: 18px; }
+.room-title > div:first-child { font-weight: 300; font-size: 32px; letter-spacing: -0.02em; line-height: 1.05; }
+.room-title .hash { font-style: italic; font-weight: 700; color: var(--accent); margin-right: 4px; }
+.no-room h2 { font-family: var(--wordmark); font-style: italic; font-weight: 600; font-size: 40px; letter-spacing: -0.02em; }
+.space-name, .day { font-size: 10px; letter-spacing: 0.24em; font-weight: 600; color: var(--muted); }
+.day { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.day::before, .day::after { content: ""; width: 36px; height: 1px; background: currentColor; opacity: 0.5; }
+
+/* Rooms list: navy pill for where you are */
+.space li { border-radius: 999px; padding: 6px 12px; color: #3c5a7e; }
+.space li:hover { background: rgba(255, 255, 255, 0.7); color: var(--text); }
+.space li.active { background: var(--text); color: #fff; font-weight: 600; box-shadow: 0 6px 18px rgba(7, 45, 89, 0.25); }
+.space li.active .live { background: #fff; }
+
+.messages { background: transparent; }
+.name { color: var(--text); font-weight: 700; }
+.body a { color: #d94a66; }
+.avatar, .avatar > img { border-radius: 50%; }
+
+/* Cards and inputs: glass with a white edge and a soft shadow */
+.file, .composer textarea, .sidebar .foot input, .sidebar .foot select {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 28px rgba(7, 45, 89, 0.08);
+}
+.file { border-radius: 20px; }
+.file.gone { background: transparent; border: 1px dashed rgba(7, 45, 89, 0.25); box-shadow: none; }
+.composer { border-top: 0; }
+.composer textarea { border-radius: 24px; padding: 12px 18px; }
+.composer textarea:focus { border-color: var(--accent); }
+
+/* Buttons: pink pills that glow a little; quiet ones are outlined */
+button { border-radius: 999px; }
+button:not(.ghost):not(.secondary):not(.me-line) { box-shadow: 0 8px 20px rgba(253, 110, 136, 0.35); }
+button.secondary { background: transparent; border: 1px solid rgba(7, 45, 89, 0.25); color: var(--text); }
+.composer button[type="submit"] { padding: 11px 24px; }
+.scrim { background: rgba(7, 45, 89, 0.25); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.toast { background: var(--text); color: #fff; }

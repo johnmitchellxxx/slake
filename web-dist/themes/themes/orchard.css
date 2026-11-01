@@ -1,0 +1,78 @@
+/* Orchard — Mandarin Orange and Forest Green, with a shot of Crest Yellow.
+   Loud like a soda can: poster type, fat pill buttons, a checker stripe.
+   Colors: #FD550A mandarin · #015D47 forest · #E0F354 crest yellow. */
+:root {
+  --bg: #015d47;
+  --panel: #fd550a;
+  --panel-2: #014c3a;
+  --text: #fff6e6;
+  --muted: #b9d9c8;
+  --accent: #e0f354;
+  --accent-text: #013a2c;
+  --line: #0c6e56;
+  --radius: 14px;
+  --font: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+  --wordmark: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --msg-size: 15px;
+}
+
+/* Sidebar: the orange can */
+.sidebar { border-right: 0; color: #fff6e6; }
+.sidebar .brand, .sidebar .foot { border-color: rgba(1, 58, 44, 0.25); }
+.wordmark { font-family: var(--display); font-style: italic; font-weight: 400; letter-spacing: 0.01em; color: var(--accent); }
+.wordmark.small { font-size: 46px; line-height: 0.9; -webkit-text-stroke: 0; text-shadow: 3px 3px 0 #015d47; }
+.me-line, .me-line b { color: #fff6e6; }
+.space-name { color: #013a2c; font-weight: 700; letter-spacing: 0.14em; }
+.space li { color: rgba(255, 246, 230, 0.86); font-weight: 600; border-radius: 999px; padding: 6px 12px; }
+.space li:hover { background: rgba(1, 58, 44, 0.18); color: #fff; }
+.space li.active { background: var(--accent); color: #013a2c; font-weight: 800; }
+.space li .dot { background: var(--accent); }
+.new-room input { color: #fff6e6; }
+.new-room input::placeholder { color: rgba(255, 246, 230, 0.6); }
+.sidebar .foot input, .sidebar .foot select { background: rgba(1, 58, 44, 0.22); border-color: transparent; color: #fff6e6; }
+.sidebar .foot input::placeholder { color: rgba(255, 246, 230, 0.65); }
+.sidebar .foot button.ghost { color: #fff6e6; }
+/* The checker stripe from the bottom of the can */
+.sidebar .foot {
+  border-top: 0; padding-top: 22px;
+  background: repeating-linear-gradient(90deg, #015d47 0 14px, #fff6e6 14px 28px) top / 100% 10px no-repeat;
+}
+
+/* Room: forest green with a soft yellow sun rising in the corner */
+.messages {
+  background:
+    radial-gradient(circle at 105% 108%, rgba(224, 243, 84, 0.10) 0 260px, transparent 261px),
+    radial-gradient(circle at 105% 108%, rgba(253, 85, 10, 0.08) 0 380px, transparent 381px),
+    var(--bg);
+}
+.room-head { border-bottom: 0; padding-top: 16px; }
+.room-title > div:first-child { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; text-transform: uppercase; color: var(--accent); letter-spacing: 0.01em; }
+.room-title .hash { color: #fd550a; }
+.room-sub { color: var(--muted); margin-top: 6px; }
+.no-room h2 { font-family: var(--display); font-style: normal; font-weight: 400; text-transform: uppercase; font-size: 54px; line-height: 0.95; color: var(--accent); }
+
+.day { display: flex; align-items: center; gap: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.18em; font-size: 11px; }
+.day::before, .day::after { content: ""; flex: 1; height: 2px; background: rgba(224, 243, 84, 0.25); }
+
+.name { color: var(--accent); }
+.body a { color: var(--accent); }
+.avatar, .avatar > img { border-radius: 50%; }
+
+/* Files: a cream label with an orange button */
+.file { background: #fff6e6; color: #013a2c; border: 0; }
+.file .file-sub { color: #3d6b5c; }
+.file .file-act button { background: #fd550a; color: #fff6e6; }
+.file .bar { background: rgba(1, 58, 44, 0.15); }
+.file .bar span { background: #fd550a; }
+.file.gone { background: transparent; color: var(--text); border: 2px dashed rgba(255, 246, 230, 0.3); }
+.file.gone .file-sub { color: var(--muted); }
+
+/* Buttons: big yellow pills, poster lettering */
+button { border-radius: 999px; }
+button:not(.ghost):not(.secondary):not(.me-line) { font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 16px; }
+.file .file-act button, .room-actions button, .ttl button, #memberList li button { font-size: 13px; }
+.composer { border-top: 0; }
+.composer textarea { background: var(--panel-2); border: 2px solid transparent; border-radius: 22px; padding: 11px 18px; }
+.composer textarea:focus { border-color: var(--accent); }
+.composer button[type="submit"] { padding: 10px 26px; font-size: 19px; box-shadow: 3px 3px 0 #fd550a; }

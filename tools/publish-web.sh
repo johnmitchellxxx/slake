@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Publish the Slake web page to slake.pantheon.live (its own Vercel project,
+# Publish Slake for the web to slake.pantheon.live (its own Vercel project,
 # separate from the Pantheon site).
 #
 # Run it anywhere VERCEL_TOKEN is set (the Pantheon Replit has it):
@@ -19,8 +19,11 @@ if [ -z "${VERCEL_TOKEN:-}" ]; then
   exit 1
 fi
 
-echo "==> [1/2] Building the Slake page..."
-node "$HERE/tools/build-web-preview.js" "$OUT"
+echo "==> [1/2] Getting the built web app..."
+# web-dist/ is built ahead of time (node tools/build-web.js web-dist) and
+# saved in the repo, so publishing needs no installs.
+mkdir -p "$OUT"
+cp -R "$HERE/web-dist/." "$OUT/"
 
 echo "==> [2/2] Deploying to Vercel and pointing $DOMAIN at it..."
 node "$HERE/tools/vercel-deploy.js" "$OUT" slake "$DOMAIN" "$SCOPE"

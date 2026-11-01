@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: slakewall:; frame-src 'self'">
+  <title>Theme Studio</title>
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+  <aside class="controls">
+    <header class="top">
+      <h1 id="studioTitle">Theme Studio</h1>
+      <p id="studioSub" class="sub">Everything you change shows up on the right. Only you see your theme.</p>
+      <button id="openFolder" class="link" data-theme-only>Open themes folder (for hand-editing)</button>
+    </header>
+
+    <div class="scroll">
+      <section data-theme-only>
+        <h2>Start from</h2>
+        <select id="startFrom"></select>
+      </section>
+
+      <section data-theme-only>
+        <h2>Colors</h2>
+        <div class="colors" id="colors"></div>
+      </section>
+
+      <section data-theme-only>
+        <h2>Type</h2>
+        <div class="font-slots" id="fontSlots"></div>
+        <div class="font-picker" id="fontPicker" hidden>
+          <input id="fontSearch" placeholder="Find a font" autocomplete="off">
+          <ul id="fontList"></ul>
+        </div>
+        <label class="row">
+          <span>Text size</span>
+          <input type="range" id="size" min="13" max="19" step="1">
+          <output id="sizeOut"></output>
+        </label>
+        <label class="row check">
+          <input type="checkbox" id="logoItalic">
+          <span>Slanted logo</span>
+        </label>
+      </section>
+
+      <section data-theme-only>
+        <h2>Shape</h2>
+        <label class="row">
+          <span>Corners</span>
+          <input type="range" id="radius" min="0" max="24" step="1">
+          <output id="radiusOut"></output>
+        </label>
+        <div class="row">
+          <span>Spacing</span>
+          <div class="seg" id="spacing">
+            <button type="button" data-v="compact">Tight</button>
+            <button type="button" data-v="comfortable">Normal</button>
+            <button type="button" data-v="airy">Airy</button>
+          </div>
+        </div>
+        <div class="row">
+          <span>Pictures</span>
+          <div class="seg" id="pictures">
+            <button type="button" data-v="square">Square</button>
+            <button type="button" data-v="rounded">Rounded</button>
+            <button type="button" data-v="round">Round</button>
+          </div>
+        </div>
+      </section>
+
+      <section data-theme-only>
+        <h2>Effects</h2>
+        <label class="row"><span>Glow</span><input type="range" id="glow" min="0" max="100"><output id="glowOut"></output></label>
+        <label class="row"><span>Grain</span><input type="range" id="grain" min="0" max="100"><output id="grainOut"></output></label>
+        <label class="row"><span>Shadows</span><input type="range" id="shadows" min="0" max="100"><output id="shadowsOut"></output></label>
+        <label class="row"><span>See-through</span><input type="range" id="seeThrough" min="0" max="100"><output id="seeThroughOut"></output></label>
+        <p class="hint">See-through lets your background show behind the sidebar and bars.</p>
+      </section>
+
+      <section data-theme-only>
+        <h2>Layout</h2>
+        <label class="row check"><input type="checkbox" id="bubbles"><span>Chat bubbles, yours on the right</span></label>
+        <label class="row check"><input type="checkbox" id="cues"><span>Cue numbers down the left</span></label>
+      </section>
+
+      <section>
+        <h2 id="wallTitle">Background</h2>
+        <p class="hint" id="wallHint"></p>
+        <div class="walls" id="walls"></div>
+        <label class="row"><span>Blur</span><input type="range" id="blur" min="0" max="40"><output id="blurOut"></output></label>
+        <label class="row"><span>Dim</span><input type="range" id="dim" min="0" max="90"><output id="dimOut"></output></label>
+      </section>
+    </div>
+
+    <footer class="actions" id="themeActions">
+      <input id="themeName" maxlength="40" placeholder="Name your theme" autocomplete="off">
+      <button id="save" class="primary">Save theme</button>
+    </footer>
+    <footer class="actions" id="roomActions" hidden>
+      <button id="useDefault" class="ghost">Use my default</button>
+      <button id="useRoom" class="primary">Use for this room</button>
+    </footer>
+  </aside>
+
+  <main class="preview">
+    <iframe id="preview" src="index.html#preview" title="Preview"></iframe>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="wallpapers.js"></script>
+  <script src="studio-gen.js"></script>
+  <script src="studio.js"></script>
+</body>
+</html>

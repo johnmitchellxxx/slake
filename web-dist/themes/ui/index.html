@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: slakewall:">
+  <title>Slake</title>
+  <link rel="stylesheet" href="style.css">
+  <style id="theme"></style>
+</head>
+<body>
+  <!-- Your wallpaper (only you see it), and a tint over it so text stays readable -->
+  <div id="wallLayer" class="wall" hidden></div>
+  <div id="wallDim" class="wall-dim" hidden></div>
+  <!-- First launch: pick a name -->
+  <section id="welcome" class="screen" hidden>
+    <div class="card">
+      <h1 class="wordmark">slake</h1>
+      <p class="sub">Chat that lives on your friends' computers. No server, no bill.</p>
+      <form id="nameForm">
+        <label for="nameInput">Name</label>
+        <input id="nameInput" maxlength="40" autocomplete="username" placeholder="What people call you" required>
+        <label for="newPassword">Password</label>
+        <input id="newPassword" type="password" autocomplete="current-password" required>
+        <button type="submit">Continue</button>
+        <p class="hint">Already use Slake? Same name and password, and your rooms come with you.</p>
+      </form>
+      <div id="loginWait" class="login-wait" hidden>
+        <div class="spinner"></div>
+        <p><b>Checking for your other devices…</b></p>
+        <button id="cancelLogin" class="ghost" type="button">Skip, I'm new</button>
+      </div>
+      <p id="welcomeError" class="error" role="alert"></p>
+    </div>
+  </section>
+
+  <!-- The main chat -->
+  <section id="chat" class="screen" hidden>
+    <aside class="sidebar">
+      <header class="brand">
+        <div class="wordmark small">slake</div>
+        <button id="meLine" class="me-line" title="Change your picture"></button>
+      </header>
+
+      <form id="clashBanner" class="clash" hidden>
+        <p id="clashText"></p>
+        <div class="emoji-form">
+          <input id="clashInput" maxlength="40" autocomplete="off" placeholder="A different name">
+          <button type="submit">Save</button>
+        </div>
+      </form>
+
+      <div id="avatarPicker" class="picker" hidden>
+        <div class="picker-head">
+          <span>Your picture</span>
+          <button id="pickerClose" class="ghost" aria-label="Close">✕</button>
+        </div>
+        <form id="nameChange" class="emoji-form">
+          <input id="nameChangeInput" maxlength="40" autocomplete="off" placeholder="Your name">
+          <button type="submit" class="secondary">Save</button>
+        </form>
+        <button id="pickPhoto" class="secondary full">Choose a photo…</button>
+        <div id="emojiGrid" class="emoji-grid"></div>
+        <form id="emojiForm" class="emoji-form">
+          <input id="emojiInput" maxlength="16" autocomplete="off" placeholder="Or type any emoji">
+          <button type="submit" class="secondary">Use</button>
+        </form>
+        <button id="pickDefault" class="ghost full">Back to the default</button>
+        <p class="hint">Everyone in your rooms sees your name and picture.</p>
+        <div class="picker-head pw-head"><span>Password</span></div>
+        <p id="pwStatus" class="hint"></p>
+        <form id="pwForm" class="emoji-form">
+          <input id="pwInput" type="password" autocomplete="new-password" placeholder="New password">
+          <button type="submit" class="secondary">Save</button>
+        </form>
+        <button id="logoutBtn" class="ghost full" type="button">Log out of this computer</button>
+      </div>
+
+      <nav id="spaces"></nav>
+
+      <button id="updateBanner" class="update" hidden></button>
+
+      <footer class="foot">
+        <form id="joinForm" class="join">
+          <input id="joinInput" autocomplete="off" placeholder="Join with a code or invite">
+        </form>
+        <div class="theme-row">
+          <select id="themeSelect" aria-label="Theme"></select>
+          <button id="themesBtn" class="ghost" title="Open the Theme Studio">Edit</button>
+        </div>
+        <div id="versionLine" class="version"></div>
+      </footer>
+    </aside>
+
+    <main class="room">
+      <div id="noRoom" class="no-room" hidden>
+        <h2>This is your space.</h2>
+        <p>Make a room with <b>+ new room</b> on the left. Right-click any room for its invite and members.<br>
+           Got an invite from someone? Paste it in the box at the bottom left.</p>
+      </div>
+
+      <div id="roomView" class="room-view" hidden>
+        <div id="searchBar" class="search" hidden>
+          <input id="searchInput" autocomplete="off" placeholder="Search every room, messages and file names">
+          <button id="searchClose" class="ghost" aria-label="Close search">✕</button>
+        </div>
+        <header class="room-head">
+          <div class="room-title">
+            <div><span class="hash">#</span><span id="roomName"></span></div>
+            <div id="roomSub" class="room-sub"></div>
+          </div>
+        </header>
+
+        <div id="removedBanner" class="banner" hidden>
+          <span id="bannerText">You're no longer in this room. You can still read what was said before.</span>
+          <button id="dismissBtn" class="ghost">Remove from sidebar</button>
+        </div>
+
+        <div class="room-body">
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <div id="results" class="messages results" hidden></div>
+          <div id="dropZone" class="drop" hidden>Drop to send</div>
+          <aside id="membersPanel" class="members" hidden>
+            <div class="members-head">
+              <span>Members</span>
+              <button id="closeMembers" class="ghost" aria-label="Close">✕</button>
+            </div>
+            <ul id="memberList"></ul>
+            <p class="hint">Right-click someone to remove them. Everyone else gets a new room key; the removed person keeps what they already saw but can't follow anything new.</p>
+          </aside>
+        </div>
+
+        <div id="pending" class="pending" hidden>
+          <span class="pending-file"><span class="file-icon">📄</span><span id="pendingName" class="file-name"></span><span id="pendingSize" class="file-size"></span></span>
+          <span class="ttl" role="radiogroup" aria-label="How long it lasts">
+            <span class="ttl-label">Lasts</span>
+            <button type="button" data-ttl="3600000">1 hour</button>
+            <button type="button" data-ttl="86400000" class="on">1 day</button>
+            <button type="button" data-ttl="604800000">1 week</button>
+          </span>
+          <button type="button" id="pendingSend">Send file</button>
+          <button type="button" id="pendingCancel" class="ghost" aria-label="Cancel">✕</button>
+        </div>
+
+        <form id="composer" class="composer">
+          <button type="button" id="attachBtn" class="ghost attach" title="Send a file, or drag one in" aria-label="Send a file">+</button>
+          <textarea id="text" rows="1" maxlength="4000" placeholder="Say something…"></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </main>
+  </section>
+
+  <div id="codeDialog" class="scrim" hidden>
+    <div class="dialog" role="dialog" aria-labelledby="codeTitle">
+      <div id="codeTitle" class="dialog-title"></div>
+      <div id="codeValue" class="code"></div>
+      <p id="codeNote" class="dialog-note"></p>
+      <div class="dialog-actions">
+        <button id="codeCopy">Copy code</button>
+        <button id="codeClose" class="ghost">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="wallpapers.js"></script>
+  <script src="demo.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

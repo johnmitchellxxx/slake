@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('slake', {
   setPassword: (pw) => call('setPassword', pw),
   login: (name, password, timeout) => call('login', { name, password, timeout }),
   cancelLogin: () => call('cancelLogin'),
+  logout: () => call('logout'),
   setAvatar: (a) => call('setAvatar', a),
   pickImage: () => call('pickImage'),
   createRoom: (title) => call('createRoom', title),

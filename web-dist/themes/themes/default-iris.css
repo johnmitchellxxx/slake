@@ -1,0 +1,5 @@
+/* Default, in Iris. Same look as the default, different accent color. */
+:root {
+  --accent: #a78bfa;
+  --accent-text: #160b33;
+}

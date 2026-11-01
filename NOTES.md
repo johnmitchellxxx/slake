@@ -93,13 +93,22 @@ before tagging: releases are public.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
   invite is sealed to the other person and delivered once you're connected.)
 
-## Web page (slake.pantheon.live)
+## Slake on the web (slake.pantheon.live)
 
-`node tools/build-web-preview.js <folder>` builds a static page: the real UI
-with sample chat (`ui/demo.js`) and a row of theme buttons. For now it's a
-theme preview; the real web version of Slake will replace it at the same
-address. `tools/publish-web.sh` builds it and deploys it to its own Vercel
-project ("slake") at slake.pantheon.live. It needs VERCEL_TOKEN, which lives
-in the Pantheon Replit, so run it from that Replit's shell:
+- Same engine (core.js) and same screen (ui/), bundled for browsers by
+  `node tools/build-web.js web-dist`. Rebuild and commit web-dist/ whenever
+  core.js, ui/ or themes/ change: publishing just copies that folder.
+- Browser stand-ins live in web/: `host.js` plays main.js + preload.js
+  (window.slake), `transport.js` replaces Hyperswarm with WebRTC (Trystero,
+  meeting through public Nostr relays), `shims/fs.js` is a pretend disk saved
+  to IndexedDB, `shims/crypto.js` covers Node's hash/HMAC.
+- Proofs are tied to each WebRTC connection's certificate fingerprints, so
+  a relay can't sit in the middle.
+- `?relays=ws://...` points it at other relays (tests); `?debug` exposes the
+  engine as window.__slakeEngine. The theme preview lives at /themes/.
+- Not yet: desktop and web users can't see each other until the desktop
+  learns WebRTC and bridges. Theme Studio and custom backgrounds are
+  desktop-only.
+- Publish from the Pantheon Replit shell:
 
-    rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh
+      rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh

@@ -675,6 +675,8 @@ async function runRoomChoice (r, choice) {
 }
 
 document.addEventListener('contextmenu', async (e) => {
+  // In a browser, typing boxes keep the browser's own menu.
+  if (s.web && e.target.closest('input, textarea')) return
   e.preventDefault()
   const t = e.target
   try {
@@ -798,9 +800,12 @@ function renderThemes (themes, theme) {
     if (t === theme) o.selected = true
     sel.append(o)
   }
-  const make = el('option', null, 'Make your own…')
-  make.value = '__studio'
-  sel.append(make)
+  if (!s.web) {   // the Theme Studio is desktop-only for now
+    const make = el('option', null, 'Make your own…')
+    make.value = '__studio'
+    sel.append(make)
+  }
+  $('themesBtn').hidden = !!s.web
   sel.dataset.current = theme
 }
 $('themesBtn').onclick = () => s.openStudio({ mode: 'theme', edit: $('themeSelect').value })
@@ -849,6 +854,12 @@ function showPassword () {
   } else {
     st.textContent = 'Set a password to log in as you on your phone or another computer.'
   }
+}
+$('logoutBtn').onclick = async () => {
+  const ok = me.hasPassword
+    ? await s.confirm({ action: 'Log out', message: 'Log out of Slake on this computer?', detail: `Your rooms stay on your other devices. To come back, log in as ${me.loginName || me.name} with your password while one of them is on.` })
+    : await s.confirm({ action: 'Log out anyway', message: "You haven't set a password.", detail: "Without one you can't log back in as yourself, and the rooms on this computer are gone for good. Set a password first (just above) unless you're sure." })
+  if (ok) await s.logout()
 }
 $('pwForm').onsubmit = async (e) => {
   e.preventDefault()

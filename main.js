@@ -399,6 +399,16 @@ app.whenReady().then(async () => {
   handle('setPassword', (pw) => slake.setPassword(pw))
   handle('login', ({ name, password, timeout }) => slake.login(name, password, { timeout: Math.min(Number(timeout) || 120000, 120000) }))
   handle('cancelLogin', () => slake.cancelLogin())
+  // Log out: forget who you are on this computer (themes and settings stay),
+  // then start over at the name-and-password screen.
+  handle('logout', async () => {
+    const dir = slake.dataDir
+    slake.removeAllListeners()
+    await slake.stop()
+    fs.rmSync(dir, { recursive: true, force: true })
+    app.relaunch()
+    app.exit(0)
+  })
   handle('setAvatar', (a) => slake.setAvatar(a))
   handle('pickImage', async () => {
     const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic'] }] })
