@@ -81,3 +81,11 @@ before tagging: releases are public.
 - Phone app comes after login + device sync.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
   invite is sealed to the other person and delivered once you're connected.)
+
+## Theme preview on the web
+
+`node tools/build-web-preview.js <folder>` builds a static page: the real UI
+with sample chat (`ui/demo.js`) and a row of theme buttons. It lives at
+pantheon.live/slake. To update it, in the Pantheon Replit shell (repo root):
+
+    rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && node /tmp/slake/tools/build-web-preview.js artifacts/pantheon/public/slake && bash scripts/publish-pantheon.sh
