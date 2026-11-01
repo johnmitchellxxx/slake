@@ -168,6 +168,49 @@ function openBytes (box, curve) {
   return sodium.crypto_box_seal_open(out, box, curve.pk, curve.sk) ? out : null
 }
 
+// ---------- Logging in (name + password) ----------
+// Your name and password make a private meeting point that only your own
+// devices can find and prove. They use it to hand each other your identity
+// and your room list, so logging in on a new device brings everything over.
+// Nothing is stored anywhere but your own devices.
+
+function loginName (name) { return String(name || '').trim().toLowerCase() }
+
+function lockerFrom (name, password) {
+  const salt = nodeCrypto.createHash('sha256').update('slake-login-v1:' + loginName(name)).digest().subarray(0, 16)
+  const seed = Buffer.alloc(32)
+  sodium.crypto_pwhash(seed, Buffer.from(String(password)), salt, 3, sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, sodium.crypto_pwhash_ALG_ARGON2ID13)
+  return lockerFromSeed(seed)
+}
+
+function lockerFromSeed (seed) {
+  const key = hmac(seed, 'slake-locker-key')
+  return {
+    seed,
+    key,
+    enc: hmac(seed, 'slake-locker-enc'),
+    label: hmac(key, 'slake-locker-label').toString('hex'),
+    topic: hc.discoveryKey(key)
+  }
+}
+
+function lockBox (enc, obj) {
+  const msg = Buffer.from(JSON.stringify(obj))
+  const nonce = hc.randomBytes(sodium.crypto_secretbox_NONCEBYTES)
+  const out = Buffer.alloc(msg.length + sodium.crypto_secretbox_MACBYTES)
+  sodium.crypto_secretbox_easy(out, msg, nonce, enc)
+  return Buffer.concat([nonce, out]).toString('base64')
+}
+
+function openLockBox (enc, b64) {
+  const raw = Buffer.from(String(b64 || ''), 'base64')
+  const nb = sodium.crypto_secretbox_NONCEBYTES
+  if (raw.length <= nb + sodium.crypto_secretbox_MACBYTES) return null
+  const out = Buffer.alloc(raw.length - nb - sodium.crypto_secretbox_MACBYTES)
+  if (!sodium.crypto_secretbox_open_easy(out, raw.subarray(nb), raw.subarray(0, nb), enc)) return null
+  try { return JSON.parse(out.toString('utf8')) } catch { return null }
+}
+
 // ---------- Invites ----------
 // slake:<base64url of {v, r: room id, t: title, o: owner key, n: owner name, e: epoch, k: room key}>
 
@@ -209,6 +252,8 @@ class Slake extends EventEmitter {
     this.now = () => Date.now()  // tests can fast-forward the clock
     this.codes = new Map()       // label -> { code, roomId, seed, topic, expires }  (codes I handed out)
     this.knocks = new Map()      // label -> { seed, topic, resolve, reject, timer }  (codes I'm using)
+    this.locker = null           // my login meeting point, once I have a password
+    this._login = null           // a login waiting for one of my other devices
     this.swarm = null
     fs.mkdirSync(this.roomsDir, { recursive: true })
     fs.mkdirSync(this.filesDir, { recursive: true })
@@ -241,6 +286,12 @@ class Slake extends EventEmitter {
     this.swarm = this.makeSwarm()
     this.swarm.on('connection', (conn) => this._onConnection(conn))
     await Promise.all([...this.rooms.values()].map((room) => this._joinTopics(room)))
+    const saved = this._readJSON(this._file('locker.json'))
+    if (saved && typeof saved.seed === 'string' && /^[0-9a-f]{64}$/.test(saved.seed)) {
+      this.locker = { ...lockerFromSeed(Buffer.from(saved.seed, 'hex')), loginName: saved.loginName || this.identity.name, left: saved.left || {} }
+      await this.swarm.join(this.locker.topic, { server: true, client: true }).flushed()
+    }
+    this.on('rooms', () => this._lockerChanged())
     this.purgeExpired()
     this._purgeTimer = setInterval(() => this.purgeExpired(), 30 * 1000)
     if (this._purgeTimer.unref) this._purgeTimer.unref()
@@ -251,16 +302,19 @@ class Slake extends EventEmitter {
     for (const label of [...this.codes.keys()]) this._endCode(label)
     for (const k of this.knocks.values()) clearTimeout(k.timer)
     for (const t of this.transfers.values()) clearTimeout(t.timer)
+    if (this._login) clearTimeout(this._login.timer)
+    clearTimeout(this._lockerTimer)
     if (this.swarm) await this.swarm.destroy()
   }
 
-  get me () { return { publicKey: this.identity.publicKey, name: this.identity.name, avatar: this.identity.avatar || null } }
+  get me () { return { publicKey: this.identity.publicKey, name: this.identity.name, avatar: this.identity.avatar || null, hasPassword: !!(this.locker && !this._login), loginName: this.locker && !this._login ? this.locker.loginName : null } }
 
   // Change your picture everywhere: a signed note in every room you're in.
   setAvatar (avatar) {
     this._needName()
     if (!validAvatar(avatar)) throw new Error("That picture won't work. Try a smaller photo or a single emoji.")
     this.identity.avatar = avatar
+    this.identity.profileTs = Date.now()
     this._writeJSON(this._file('identity.json'), this.identity, 0o600)
     for (const room of this.rooms.values()) if (!room.removed) this._publish(room, this._sign(room, 'profile', room.epoch, { avatar }))
   }
@@ -273,7 +327,9 @@ class Slake extends EventEmitter {
     name = String(name || '').trim().slice(0, 40)
     if (!name) throw new Error('Name required')
     this.identity.name = name
+    this.identity.profileTs = Date.now()
     this._writeJSON(this._file('identity.json'), this.identity, 0o600)
+    this._lockerChanged()
   }
 
   // ----- room bookkeeping -----
@@ -288,6 +344,7 @@ class Slake extends EventEmitter {
       removed: !!meta.removed,
       dm: !!meta.dm,
       peer: meta.peer || null,
+      since: meta.since || 0,
       records: new Map()
     }
     room.epoch = Math.max(...Object.keys(room.keys).map(Number))
@@ -307,7 +364,8 @@ class Slake extends EventEmitter {
 
   _saveRoom (room) {
     const { id, title, owner, ownerName, keys, removed, dm, peer } = room
-    this._writeJSON(path.join(this.roomsDir, id + '.json'), { id, title, owner, ownerName, keys, removed, dm: !!dm, peer: peer || null }, 0o600)
+    if (!room.since) room.since = Date.now()
+    this._writeJSON(path.join(this.roomsDir, id + '.json'), { id, title, owner, ownerName, keys, removed, dm: !!dm, peer: peer || null, since: room.since }, 0o600)
   }
 
   _indexKeys (room) {
@@ -431,6 +489,7 @@ class Slake extends EventEmitter {
     room.keys[inv.epoch] = inv.key
     room.epoch = Math.max(room.epoch, inv.epoch)
     room.removed = false
+    room.since = Date.now()
     this._saveRoom(room)
     this._indexKeys(room)
     this._publish(room, this._sign(room, 'join', inv.epoch, {}))
@@ -564,6 +623,184 @@ class Slake extends EventEmitter {
     this.joinRoom(invite, { waitForNetwork: false }).then((id) => k.done(null, id), (e) => k.done(e))
   }
 
+  // ---------- Logging in ----------
+
+  _saveLocker () {
+    if (!this.locker || this._login) return
+    this._writeJSON(this._file('locker.json'), { seed: this.locker.seed.toString('hex'), loginName: this.locker.loginName, left: this.locker.left }, 0o600)
+  }
+
+  // Give this Slake a password, so you can log in as yourself on other devices.
+  // (Also how you change it: your devices need to be connected to each other
+  // to all pick up a new one, otherwise set it again on each.)
+  async setPassword (password) {
+    this._needName()
+    if (this._login) throw new Error("You're in the middle of logging in")
+    if (!String(password || '')) throw new Error('Type a password')
+    const old = this.locker
+    this.locker = { ...lockerFrom(this.identity.name, password), loginName: this.identity.name, left: old ? old.left : {} }
+    this._saveLocker()
+    if (old && old.label !== this.locker.label) await this.swarm.leave(old.topic).catch(() => {})
+    await this.swarm.join(this.locker.topic, { server: true, client: true }).flushed()
+    this._announce()
+    this.emit('rooms')
+    return this.me
+  }
+
+  // Log in on a fresh device: find one of your other devices and copy your
+  // identity and rooms from it. Waits until one answers.
+  login (name, password, { timeout = 120000 } = {}) {
+    if (this.rooms.size || this.locker) return Promise.reject(new Error('This Slake is already set up as someone'))
+    if (!String(name || '').trim()) return Promise.reject(new Error('Type your name'))
+    if (!password) return Promise.reject(new Error('Type your password'))
+    this.locker = { ...lockerFrom(name, password), loginName: String(name).trim().slice(0, 40), left: {} }
+    return new Promise((resolve, reject) => {
+      const login = { resolve, reject }
+      login.timer = setTimeout(() => this._endLogin(new Error("Couldn't find your other devices. Check your name and password, and make sure Slake is open on a computer where you already use it.")), timeout)
+      this._login = login
+      this.swarm.join(this.locker.topic, { server: true, client: true })
+      this._announce()
+    })
+  }
+
+  cancelLogin () { this._endLogin(new Error('Login cancelled')) }
+
+  _endLogin (err) {
+    const login = this._login
+    if (!login) return
+    clearTimeout(login.timer)
+    this._login = null
+    if (err) {
+      const topic = this.locker.topic
+      this.locker = null
+      this.swarm.leave(topic).catch(() => {})
+      this._announce()
+      login.reject(err)
+    } else {
+      login.resolve(this.me)
+    }
+  }
+
+  _onLockerProof (peer, lk) {
+    if (!this.locker || peer.mine || String(lk.l || '') !== this.locker.label) return
+    const expected = this._proof(peer.conn, this.locker.key, !peer.conn.isInitiator)
+    const got = Buffer.from(String(lk.p || ''), 'hex')
+    if (got.length !== expected.length || !nodeCrypto.timingSafeEqual(got, expected)) return
+    peer.mine = true
+    this._hello(peer)               // let them check us too
+    if (!this._login) this._sendKeyring(peer)
+  }
+
+  _keyring () {
+    const rooms = []
+    for (const r of this.rooms.values()) rooms.push({ id: r.id, title: r.title, owner: r.owner, ownerName: r.ownerName, keys: r.keys, dm: !!r.dm, peer: r.peer || null, since: r.since || 0 })
+    const { publicKey, secretKey, name, avatar, profileTs } = this.identity
+    return { v: 1, identity: { publicKey, secretKey, name, avatar: avatar || null, profileTs: profileTs || 0 }, rooms, left: this.locker.left, pendingDMs: [...this._pendingDMs()] }
+  }
+
+  _sendKeyring (peer) {
+    if (!this.locker || this._login || !peer.mine) return
+    this._send(peer, { type: 'keyring', box: lockBox(this.locker.enc, this._keyring()) })
+  }
+
+  // Something about my rooms or profile changed: tell my other devices.
+  _lockerChanged () {
+    if (!this.locker || this._login) return
+    clearTimeout(this._lockerTimer)
+    this._lockerTimer = setTimeout(() => {
+      const k = this._keyring()
+      const fp = nodeCrypto.createHash('sha256').update(JSON.stringify(k)).digest('hex')
+      if (fp === this._lockerSent) return
+      this._lockerSent = fp
+      for (const p of this.peers) if (p.mine) this._sendKeyring(p)
+    }, 300)
+    if (this._lockerTimer.unref) this._lockerTimer.unref()
+  }
+
+  _onKeyring (peer, msg) {
+    if (!peer.mine || !this.locker) return
+    const k = openLockBox(this.locker.enc, msg.box)
+    if (!k || k.v !== 1 || !k.identity || !KEY_RE.test(String(k.identity.publicKey)) || !/^[0-9a-f]{128}$/.test(String(k.identity.secretKey))) return
+
+    if (this._login) { this._adopt(k); return }
+
+    if (k.identity.publicKey !== this.identity.publicKey) {
+      // Same name and password, but this device started fresh while my other
+      // devices were off. If it hasn't been used for anything yet, become me.
+      if (this.rooms.size === 0) { this._adopt(k); return }
+      this.emit('login-clash')
+      return
+    }
+    this._mergeKeyring(k)
+  }
+
+  // Become the person in this keyring (logging in on a new device).
+  _adopt (k) {
+    const { publicKey, secretKey, name, avatar, profileTs } = k.identity
+    this.identity = { publicKey, secretKey, name: String(name || this.locker.loginName).slice(0, 40), avatar: validAvatar(avatar) ? avatar : null, profileTs: profileTs || 0 }
+    this.curve = curveKeys(this.identity)
+    this._writeJSON(this._file('identity.json'), this.identity, 0o600)
+    const login = this._login
+    this._login = null
+    this._mergeKeyring(k)
+    this._saveLocker()
+    this._announce()
+    this.emit('rooms')
+    if (login) { this._login = login; this._endLogin(null) }
+  }
+
+  _mergeKeyring (k) {
+    let changed = false
+    // Profile: newest wins.
+    if ((k.identity.profileTs || 0) > (this.identity.profileTs || 0)) {
+      this.identity.name = String(k.identity.name || this.identity.name).slice(0, 40)
+      this.identity.avatar = validAvatar(k.identity.avatar) ? k.identity.avatar : null
+      this.identity.profileTs = k.identity.profileTs
+      this._writeJSON(this._file('identity.json'), this.identity, 0o600)
+      changed = true
+    }
+    // Rooms I left on another device.
+    const left = k.left && typeof k.left === 'object' ? k.left : {}
+    for (const [id, ts] of Object.entries(left)) {
+      if (!ID_RE.test(id) || !isFinite(ts)) continue
+      if (!this.locker.left[id] || this.locker.left[id] < ts) { this.locker.left[id] = ts; changed = true }
+      const room = this.rooms.get(id)
+      if (room && (room.since || 0) < ts && !(room.owner === this.identity.publicKey && !room.dm && !room.closedAt)) this.leaveRoom(id).catch(() => {})
+    }
+    // Rooms I'm in on another device.
+    for (const m of Array.isArray(k.rooms) ? k.rooms.slice(0, 4096) : []) {
+      if (!m || !ID_RE.test(String(m.id)) || !KEY_RE.test(String(m.owner))) continue
+      const since = isFinite(m.since) ? Number(m.since) : 0
+      if (this.locker.left[m.id] && this.locker.left[m.id] >= since) continue
+      const keys = {}
+      for (const [e, hex] of Object.entries(m.keys || {})) if (isInt(Number(e)) && KEY_RE.test(String(hex))) keys[Number(e)] = hex
+      if (!Object.keys(keys).length) continue
+      let room = this.rooms.get(m.id)
+      if (!room) {
+        room = { id: m.id, title: String(m.title || 'room').slice(0, 40), owner: m.owner, ownerName: String(m.ownerName || 'Someone').slice(0, 40), keys: {}, epoch: 0, removed: false, records: new Map(), dm: !!m.dm, peer: m.dm && KEY_RE.test(String(m.peer)) ? m.peer : null, since: since || Date.now() }
+        this.rooms.set(room.id, room)
+      }
+      let added = false
+      for (const [e, hex] of Object.entries(keys)) if (!room.keys[e]) { room.keys[e] = hex; added = true }
+      if (!added) continue
+      room.epoch = Math.max(...Object.keys(room.keys).map(Number))
+      room.removed = false
+      this._saveRoom(room)
+      this._indexKeys(room)
+      this._joinTopics(room).catch(() => {})
+      changed = true
+    }
+    // DMs still waiting to reach the other person.
+    for (const id of Array.isArray(k.pendingDMs) ? k.pendingDMs : []) {
+      if (ID_RE.test(String(id)) && this.rooms.has(id) && !this._pendingDMs().has(id)) { this._pendingDMs().add(id); this._savePendingDMs() }
+    }
+    if (changed) {
+      this._saveLocker()
+      this._announce()
+      this.emit('rooms')
+    }
+  }
+
   // ---------- Who's online ----------
 
   _onIdentity (peer, me) {
@@ -581,6 +818,7 @@ class Slake extends EventEmitter {
   onlineKeys () {
     const out = new Set()
     for (const p of this.peers) if (p.identity) out.add(p.identity)
+    out.delete(this.identity.publicKey)
     return out
   }
 
@@ -689,6 +927,7 @@ class Slake extends EventEmitter {
     const room = this._room(roomId)
     if (room.owner === this.identity.publicKey && !room.dm && !room.closedAt) throw new Error("You own this room, so it stays in your space")
     if (room.dm && this._pendingDMs().delete(roomId)) this._savePendingDMs()
+    if (this.locker && !this._login) { this.locker.left[roomId] = Date.now(); this._saveLocker() }
     await this._leaveTopics(room)
     this._unindexKeys(room)
     this.rooms.delete(roomId)
@@ -783,7 +1022,9 @@ class Slake extends EventEmitter {
     // Say who we are, signed for this one connection so it can't be replayed.
     const tag = Buffer.concat([peer.conn.handshakeHash, Buffer.from(peer.conn.isInitiator ? 'I-id' : 'R-id')])
     const me = { k: this.identity.publicKey, n: this.identity.name || '', s: hc.sign(tag, Buffer.from(this.identity.secretKey, 'hex')).toString('hex') }
-    this._send(peer, { type: 'hello', entries, me })
+    const msg = { type: 'hello', entries, me }
+    if (this.locker) msg.lk = { l: this.locker.label, p: this._proof(peer.conn, this.locker.key, peer.conn.isInitiator).toString('hex') }
+    this._send(peer, msg)
   }
 
   _announce () { for (const p of this.peers) this._hello(p) }
@@ -813,7 +1054,7 @@ class Slake extends EventEmitter {
     this._hello(peer)
     for (const k of this.knocks.values()) this._knock(peer, k)
     // Strangers who can't prove they share any room get dropped.
-    peer.timer = setTimeout(() => { if (peer.proven.size === 0) { this.emit('rejected'); conn.destroy() } }, 15000)
+    peer.timer = setTimeout(() => { if (peer.proven.size === 0 && !peer.mine) { this.emit('rejected'); conn.destroy() } }, 15000)
   }
 
   _send (peer, obj) {
@@ -827,6 +1068,7 @@ class Slake extends EventEmitter {
   _onMessage (peer, msg) {
     if (msg.type === 'hello' && Array.isArray(msg.entries)) {
       this._onIdentity(peer, msg.me)
+      if (msg.lk) this._onLockerProof(peer, msg.lk)
       const changed = new Set()
       for (const ent of msg.entries.slice(0, 4096)) {
         const v = this.keyIndex.get(String(ent && ent.l))
@@ -851,6 +1093,7 @@ class Slake extends EventEmitter {
       return
     }
 
+    if (msg.type === 'keyring') { this._onKeyring(peer, msg); return }
     if (msg.type === 'knock') { this._onKnock(peer, msg); return }
     if (msg.type === 'dm') { this._onDM(peer, msg); return }
     if (msg.type === 'dm-ok') { this._onDMOk(peer, msg); return }

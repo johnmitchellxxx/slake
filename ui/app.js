@@ -124,11 +124,32 @@ function applyTheme (css) { $('theme').textContent = css || '' }
 const roomById = (id) => rooms.find((r) => r.id === id)
 
 // ---------- Welcome ----------
+// One form: if this name and password belong to someone on another device,
+// you become them; if nothing answers in a few seconds, you're new.
 $('nameForm').onsubmit = async (e) => {
   e.preventDefault()
-  $('welcomeError').textContent = ''
-  try { await s.setName($('nameInput').value); await refresh() } catch (err) { $('welcomeError').textContent = err.message }
+  const name = $('nameInput').value.trim()
+  const pw = $('newPassword').value
+  if (!name || !pw) return
+  waiting(true)
+  try {
+    await s.login(name, pw, 8000)
+  } catch {
+    try {
+      await s.setName(name)
+      await s.setPassword(pw)
+    } catch (err) { waiting(false); $('welcomeError').textContent = err.message; return }
+  }
+  $('newPassword').value = ''
+  waiting(false)
+  await refresh()
 }
+function waiting (on) {
+  $('nameForm').hidden = on
+  $('loginWait').hidden = !on
+  $('welcomeError').textContent = ''
+}
+$('cancelLogin').onclick = () => s.cancelLogin()
 
 // ---------- Sidebar ----------
 function roomItem (r) {
@@ -818,6 +839,25 @@ async function setAvatar (a) {
 $('meLine').onclick = () => {
   $('avatarPicker').hidden = !$('avatarPicker').hidden
   $('nameChangeInput').value = me.name
+  showPassword()
+}
+function showPassword () {
+  const st = $('pwStatus')
+  st.textContent = ''
+  if (me.hasPassword) {
+    st.append('Log in on your other devices as ', el('b', null, me.loginName || me.name), ' with your password. Type a new one to change it.')
+  } else {
+    st.textContent = 'Set a password to log in as you on your phone or another computer.'
+  }
+}
+$('pwForm').onsubmit = async (e) => {
+  e.preventDefault()
+  try {
+    me = await s.setPassword($('pwInput').value)
+    $('pwInput').value = ''
+    showPassword()
+    toast('Password saved')
+  } catch (err) { toast(err.message) }
 }
 $('nameChange').onsubmit = (e) => { e.preventDefault(); rename($('nameChangeInput').value); $('avatarPicker').hidden = true }
 $('pickerClose').onclick = () => { $('avatarPicker').hidden = true }
@@ -943,7 +983,7 @@ async function refresh () {
   if (!me.name) {
     $('welcome').hidden = false
     $('chat').hidden = true
-    $('nameInput').focus()
+    if ($('loginWait').hidden) $('nameInput').focus()
     return
   }
   $('welcome').hidden = true

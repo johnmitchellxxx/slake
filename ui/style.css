@@ -62,6 +62,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .card .sub { color: var(--muted); margin: 10px 0 32px; }
 .card form { display: grid; gap: 8px; margin-bottom: 12px; }
 .card label { font-size: 13px; color: var(--muted); }
+.card .ghost.full { margin-top: 4px; font-size: 13px; }
+.login-wait { display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.login-wait b { color: var(--text); }
+.spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pw-head { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
 .or { text-align: center; color: var(--muted); margin: 14px 0; font-size: 13px; }
 .error { color: var(--danger); min-height: 1.4em; font-size: 14px; }
 

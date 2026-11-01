@@ -36,6 +36,19 @@ language, keep the window clean and minimal, keep it hackable.
 - Names: the emoji pair (from the key) is hidden unless two people share a
   name. Whoever took the name second is asked to rename.
 
+## Login (name + password)
+
+- The welcome screen asks for a name and a password, nothing else. Any
+  password is allowed (owner's call; revisit past ~5 users).
+- Name + password go through a slow hash into a private "locker" meeting
+  point. Your devices find each other there, prove they know it, and swap a
+  sealed keyring: identity keys, every room's keys, rooms left, profile.
+- New device: it waits ~8 seconds for one of your devices. If none answers
+  it starts as a new person; when it later meets your real device and hasn't
+  been used yet, it turns into you automatically.
+- Existing users set a password from the panel under their name.
+- No Google sign-in: that needs a server in the middle.
+
 ## Theme hooks
 
 Themes can restyle anything. Useful hooks:
@@ -73,8 +86,6 @@ before tagging: releases are public.
 
 ## Decided, for later
 
-- Login (name + password = identity) and device sync, so phones and second
-  machines see your rooms. Planned for when there are more than ~5 users.
 - Theme Studio and wallpapers are built (see below). Glass-style window
   vibrancy is still off.
 - Plugins: only from the user's own plugins folder, never run from chat.

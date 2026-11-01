@@ -17,10 +17,18 @@
       <h1 class="wordmark">slake</h1>
       <p class="sub">Chat that lives on your friends' computers. No server, no bill.</p>
       <form id="nameForm">
-        <label for="nameInput">What should people call you?</label>
-        <input id="nameInput" maxlength="40" autocomplete="off" placeholder="Your name" required>
+        <label for="nameInput">Name</label>
+        <input id="nameInput" maxlength="40" autocomplete="username" placeholder="What people call you" required>
+        <label for="newPassword">Password</label>
+        <input id="newPassword" type="password" autocomplete="current-password" required>
         <button type="submit">Continue</button>
+        <p class="hint">Already use Slake? Same name and password, and your rooms come with you.</p>
       </form>
+      <div id="loginWait" class="login-wait" hidden>
+        <div class="spinner"></div>
+        <p><b>Checking for your other devices…</b></p>
+        <button id="cancelLogin" class="ghost" type="button">Skip, I'm new</button>
+      </div>
       <p id="welcomeError" class="error" role="alert"></p>
     </div>
   </section>
@@ -58,6 +66,12 @@
         </form>
         <button id="pickDefault" class="ghost full">Back to the default</button>
         <p class="hint">Everyone in your rooms sees your name and picture.</p>
+        <div class="picker-head pw-head"><span>Password</span></div>
+        <p id="pwStatus" class="hint"></p>
+        <form id="pwForm" class="emoji-form">
+          <input id="pwInput" type="password" autocomplete="new-password" placeholder="New password">
+          <button type="submit" class="secondary">Save</button>
+        </form>
       </div>
 
       <nav id="spaces"></nav>
