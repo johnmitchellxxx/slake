@@ -1,6 +1,6 @@
 {
   "name": "slake",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "Serverless peer-to-peer chat: everyone has a space, rooms live in spaces.",
   "main": "main.js",
   "scripts": {
@@ -38,6 +38,8 @@
       "main.js",
       "preload.js",
       "core.js",
+      "bridge/**",
+      "bridge.js",
       "ui/**",
       "themes/**",
       "assets/**",

@@ -35,6 +35,21 @@ const version = require(path.join(root, 'package.json')).version
     logLevel: 'warning'
   })
 
+  // The desktop app's hidden bridge page uses the same browser connections.
+  await esbuild.build({
+    entryPoints: [path.join(root, 'web', 'bridge-page.js')],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: ['chrome120'],
+    minify: true,
+    outfile: path.join(root, 'bridge', 'bridge-bundle.js'),
+    alias: { b4a: path.join(path.dirname(require.resolve('b4a')), 'index.js') },
+    inject: [path.join(root, 'web', 'shims', 'globals.js')],
+    define: { 'process.env.NODE_ENV': '"production"', global: 'globalThis' },
+    logLevel: 'warning'
+  })
+
   // The screen: same files as the desktop app.
   for (const f of fs.readdirSync(path.join(root, 'ui'))) {
     if (/^studio/.test(f) || f === 'demo.js') continue

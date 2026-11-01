@@ -5,6 +5,8 @@ const { pathToFileURL } = require('url')
 const path = require('path')
 const fs = require('fs')
 const { Slake } = require('./core')
+const Hyperswarm = require('hyperswarm')
+const { Bridge, BothSwarm } = require('./bridge')
 
 // `npm run second` gives you a separate person on the same computer, for testing.
 const profile = (process.argv.find((a) => a.startsWith('--profile=')) || '').split('=')[1]
@@ -330,6 +332,18 @@ function state () {
   return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: s.theme, themeCSS: themeCSS(s.theme), version: versionInfo(), sound: s.sound !== false, wallpapers: wallpapers() }
 }
 
+let bridgeWin = null
+function openBridge () {
+  const relays = process.env.SLAKE_RELAYS ? ['--slake-relays=' + process.env.SLAKE_RELAYS] : []
+  bridgeWin = new BrowserWindow({
+    show: false,
+    webPreferences: { preload: path.join(__dirname, 'bridge', 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, additionalArguments: relays }
+  })
+  bridgeWin.loadFile(path.join(__dirname, 'bridge', 'bridge.html'))
+  // If it ever crashes, start it again; it re-joins every room by itself.
+  bridgeWin.webContents.on('render-process-gone', () => { setTimeout(() => { if (bridgeWin && !bridgeWin.isDestroyed()) bridgeWin.reload() }, 3000) })
+}
+
 app.whenReady().then(async () => {
   fs.mkdirSync(wallDir(), { recursive: true })
   protocol.handle('slakewall', (req) => {
@@ -337,7 +351,14 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(path.join(wallDir(), name)).toString())
   })
   seedThemes()
-  slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data') })
+  // Talk to web users too: a hidden browser window makes their kind of
+  // connection and hands it to the engine (see bridge.js).
+  const bridge = new Bridge({
+    post: (m) => { if (bridgeWin && !bridgeWin.isDestroyed()) bridgeWin.webContents.send('bridge', m) },
+    onMessage: (fn) => ipcMain.on('bridge', (e, m) => { if (bridgeWin && e.sender === bridgeWin.webContents) fn(m) })
+  })
+  openBridge()
+  slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data'), makeSwarm: () => new BothSwarm(new Hyperswarm(), bridge) })
   await slake.start()
 
   slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]) })
@@ -628,7 +649,8 @@ app.whenReady().then(async () => {
       const ok = await win.webContents.executeJavaScript('typeof window.slake === "object" && !!document.getElementById("chat")')
       if (!slake.me.name) slake.setName('Smoke')
       const id = await slake.createRoom('smoke-test', { waitForNetwork: false })
-      console.log(`SLAKE_SMOKE ok=${ok} packaged=${app.isPackaged} room=${id.slice(0, 8)} userData=${app.getPath('userData')}`)
+      for (let i = 0; i < 50 && !bridge.ready; i++) await new Promise((r) => setTimeout(r, 100))
+      console.log(`SLAKE_SMOKE ok=${ok} bridge=${bridge.ready} packaged=${app.isPackaged} room=${id.slice(0, 8)} userData=${app.getPath('userData')}`)
       quitting = true
       app.quit()
     })

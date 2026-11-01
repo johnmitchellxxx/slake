@@ -96,8 +96,9 @@ before tagging: releases are public.
 ## Slake on the web (slake.pantheon.live)
 
 - Same engine (core.js) and same screen (ui/), bundled for browsers by
-  `node tools/build-web.js web-dist`. Rebuild and commit web-dist/ whenever
-  core.js, ui/ or themes/ change: publishing just copies that folder.
+  `node tools/build-web.js web-dist` (also rebuilds bridge/bridge-bundle.js).
+  Rebuild and commit both whenever core.js, ui/, themes/ or web/ change:
+  publishing just copies web-dist/.
 - Browser stand-ins live in web/: `host.js` plays main.js + preload.js
   (window.slake), `transport.js` replaces Hyperswarm with WebRTC (Trystero,
   meeting through public Nostr relays), `shims/fs.js` is a pretend disk saved
@@ -106,9 +107,12 @@ before tagging: releases are public.
   a relay can't sit in the middle.
 - `?relays=ws://...` points it at other relays (tests); `?debug` exposes the
   engine as window.__slakeEngine. The theme preview lives at /themes/.
-- Not yet: desktop and web users can't see each other until the desktop
-  learns WebRTC and bridges. Theme Studio and custom backgrounds are
-  desktop-only.
+- The desktop speaks both: a hidden window (bridge/bridge.html, built from
+  web/bridge-page.js) makes the browser kind of connection and hands it to
+  the engine through bridge.js, which merges it with Hyperswarm into one
+  swarm. Same rooms and proofs; a desktop in a room with web users passes
+  messages between them. `SLAKE_RELAYS=ws://...` points it at test relays.
+- Theme Studio and custom backgrounds are desktop-only.
 - Publish from the Pantheon Replit shell:
 
       rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh
