@@ -166,7 +166,11 @@ const RETIRED = {
   'screenprint.css': ['d0415deed82e526e087295b77a9b5f607630a93298c800f36864dcb3b206dc4f'],
   'ultraviolet.css': ['d574699df6f734db6c833f70386d5e9941fd1dd855c3eaabff9fa154dd61f895'],
   'glass.css': ['615f459a4f6ce6d53af6d021cbed71393f266eff4d9537f3ded48354666ce261'],
-  'swiss.css': ['ef1ba993a6ab14433597af096e507bc15aae4703d1eec5e1d6fd05a21411df6c']
+  'swiss.css': ['ef1ba993a6ab14433597af096e507bc15aae4703d1eec5e1d6fd05a21411df6c'],
+  'default-jade.css': ['108aff98a543ae260219b7c5594fe198fc0e35a99aaa2a1c22d55de336e1884d'],
+  'default-iris.css': ['fedad183a0c95ea0a5120329c40de3c9e3c6bfde6d3baddbb6729b75a126c11e'],
+  'default-rose.css': ['1cfd5d72317ab3e7211d7f68437b4bd27d6969c4f5d7d9d5a2037f4a49ddf0a5'],
+  'default-brass.css': ['805d693f6f9fc5d09caef0761db61c7b5eb462468d34c684976b66ecdc4f2e92']
 }
 
 const sha = (buf) => require('crypto').createHash('sha256').update(buf).digest('hex')

@@ -1,6 +1,6 @@
 // Keeps a copy of the app's own files so it opens even on a bad connection.
 // Always tries the network first, so updates show up right away.
-const CACHE = 'slake-0.9.0'
+const CACHE = 'slake-0.9.1'
 self.addEventListener('install', (e) => { self.skipWaiting() })
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())) })
 self.addEventListener('fetch', (e) => {

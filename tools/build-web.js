@@ -15,7 +15,7 @@ const version = require(path.join(root, 'package.json')).version
 
   // The engine + browser stand-ins, as one script.
   await esbuild.build({
-    entryPoints: [path.join(root, 'web', 'host.js')],
+    entryPoints: [path.join(root, 'web', 'entry.js')],
     bundle: true,
     format: 'iife',
     platform: 'browser',
@@ -52,9 +52,31 @@ const version = require(path.join(root, 'package.json')).version
 
   // The screen: same files as the desktop app.
   for (const f of fs.readdirSync(path.join(root, 'ui'))) {
-    if (/^studio/.test(f) || f === 'demo.js') continue
     fs.copyFileSync(path.join(root, 'ui', f), path.join(out, f))
   }
+  // The Theme Studio runs in a frame over the app and talks to it there.
+  let studio = fs.readFileSync(path.join(out, 'studio.html'), 'utf8')
+  studio = studio.replace("img-src 'self' data: slakewall:", "img-src 'self' data: blob:")
+  studio = studio.replace('<head>', '<head>\n  <meta name="viewport" content="width=device-width, initial-scale=1">')
+  studio = studio.replace('<script src="wallpapers.js"></script>', '<script src="studio-web.js"></script>\n  <script src="wallpapers.js"></script>')
+  fs.writeFileSync(path.join(out, 'studio.html'), studio)
+  fs.writeFileSync(path.join(out, 'studio-web.js'), `// In a browser the Studio lives in a frame over the app; borrow its doorway.
+window.slake = parent.slakeStudio
+window.slakeWallUrl = parent.slakeWallUrl
+;(() => {
+  const folder = document.getElementById('openFolder')
+  if (folder) folder.hidden = true
+  // A way out of the panel: a Done button, and Esc.
+  const done = document.createElement('button')
+  done.textContent = 'Done'
+  done.className = 'link'
+  done.style.cssText = 'position:absolute;top:18px;right:20px;margin:0;font-size:14px;font-weight:600'
+  done.onclick = () => window.slake.closeStudio()
+  const head = document.querySelector('.top')
+  if (head) { head.style.position = 'relative'; head.append(done) }
+})()
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.slake.closeStudio() })
+`)
   let html = fs.readFileSync(path.join(out, 'index.html'), 'utf8')
   // Browsers need to reach the public meeting relays (wss:) and run the
   // password hash (WebAssembly).

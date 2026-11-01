@@ -190,8 +190,7 @@ $('dim').oninput = () => { wp.dim = Number($('dim').value) / 100; $('dimOut').te
 // ---------- Start from ----------
 function label (t) {
   const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1)
-  if (t === 'default') return 'Default · Lake'
-  if (t.startsWith('default-')) return 'Default · ' + t.slice(8).split('-').map(cap).join(' ')
+  if (t === 'default') return 'Iris'
   return t.split(/[-_]/).map(cap).join(' ')
 }
 function loadTheme (name) {

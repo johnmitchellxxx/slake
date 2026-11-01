@@ -3,7 +3,7 @@
 // it opens back up in the Studio exactly as you left it.
 ;(function () {
   const DEFAULTS = {
-    colors: { bg: '#16161d', panel: '#1e1e28', panel2: '#262634', text: '#ece9f2', muted: '#8d8aa0', accent: '#5b9dff', line: '#30303f' },
+    colors: { bg: '#16161d', panel: '#1e1e28', panel2: '#262634', text: '#ece9f2', muted: '#8d8aa0', accent: '#a78bfa', line: '#30303f' },
     fonts: { ui: 'system-ui', messages: 'system-ui', headings: 'system-ui', logo: 'Georgia' },
     logoItalic: true,
     size: 15,

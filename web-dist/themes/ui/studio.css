@@ -92,3 +92,12 @@ input[type="checkbox"] { accent-color: var(--s-accent); width: 16px; height: 16p
 
 .toast { position: fixed; bottom: 22px; left: calc(360px + (100vw - 360px) / 2); transform: translateX(-50%); background: var(--s-text); color: var(--s-bg); padding: 8px 16px; border-radius: 999px; font-weight: 600; }
 .link { background: none; border: 0; padding: 0; margin-top: 8px; color: var(--s-accent); font-size: 12px; }
+
+/* Phones: controls on top of a smaller preview. */
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 42vh; }
+  .controls { border-right: 0; min-height: 0; }
+  .preview { padding: 8px; border-top: 1px solid var(--s-line); }
+  .toast { left: 50%; }
+  input, select { font-size: 16px; }
+}

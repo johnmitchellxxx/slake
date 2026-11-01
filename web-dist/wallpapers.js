@@ -76,6 +76,10 @@
     if (!wp || !wp.id || wp.id === 'none') return 'none'
     if (wp.id.startsWith('file:')) {
       const name = wp.id.slice(5).replace(/[^A-Za-z0-9._-]/g, '')
+      // In a browser, pictures live in the page's storage, not on disk.
+      let web = null
+      try { web = window.slakeWallUrl || (parent && parent.slakeWallUrl) || (parent && parent.parent && parent.parent.slakeWallUrl) } catch {}
+      if (web) { const u = web(name); return u ? `url("${u}") center / cover no-repeat` : 'none' }
       return `url("slakewall://w/${name}") center / cover no-repeat`
     }
     const w = BUILT_IN.find((x) => x.id === wp.id)

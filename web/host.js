@@ -9,6 +9,8 @@ const { Slake } = require('../core')
 const { WebSwarm } = require('./transport')
 
 const DATA = '/slake'
+const WALLS = '/walls'
+let BUNDLED = []
 const listeners = {}
 const on = (name) => (fn) => { (listeners[name] = listeners[name] || []).push(fn) }
 const send = (name, data) => { for (const fn of listeners[name] || []) { try { fn(data) } catch (e) { console.error(e) } } }
@@ -19,6 +21,9 @@ function readSettings () { try { return JSON.parse(localStorage.getItem(SETTINGS
 function writeSettings (s) { try { localStorage.setItem(SETTINGS, JSON.stringify(s)) } catch {} }
 
 let THEMES = {}
+// Themes you make in the Theme Studio, kept in this browser.
+const MINE = 'slake-my-themes'
+const myThemes = () => { try { return JSON.parse(localStorage.getItem(MINE)) || {} } catch { return {} } }
 const listThemes = () => {
   const all = ['default', ...Object.keys(THEMES).sort()]
   const recent = (readSettings().recentThemes || []).filter((t) => all.includes(t))
@@ -36,7 +41,10 @@ const relayUrls = params.get('relays') ? params.get('relays').split(',') : undef
 const kdf = async (password, salt) => Buffer.from(await argon2id({ password: new Uint8Array(password), salt: new Uint8Array(salt), parallelism: 1, iterations: 3, memorySize: 65536, hashLength: 32, outputType: 'binary' }))
 
 const ready = (async () => {
-  try { THEMES = await (await fetch('themes.json')).json() } catch { THEMES = {} }
+  let bundled = {}
+  try { bundled = await (await fetch('themes.json')).json() } catch {}
+  BUNDLED = Object.keys(bundled)
+  THEMES = { ...bundled, ...myThemes() }
   await fs.load()
   slake = new Slake({ dataDir: DATA, makeSwarm: () => new WebSwarm({ relayUrls }), kdf })
   await slake.start()
@@ -164,7 +172,7 @@ function copy (text) {
 // Right-click menus, drawn in the page.
 function menu (items) {
   return new Promise((resolve) => {
-    const list = (Array.isArray(items) ? items : []).filter((i) => i.id !== 'background' && !(i.role && i.role !== 'copy'))
+    const list = (Array.isArray(items) ? items : []).filter((i) => !(i.role && i.role !== 'copy'))
     while (list.length && list[0].type === 'separator') list.shift()
     while (list.length && list[list.length - 1].type === 'separator') list.pop()
     if (!list.length) return resolve(null)
@@ -300,7 +308,7 @@ window.slake = {
   },
   update: async () => null,
   openUpdate: async () => {},
-  openStudio: async () => {},
+  openStudio: async (opts) => openStudio(opts || {}),
   setWallpaper: async (scope, wp) => {
     const s = readSettings()
     if (scope === 'default') s.wallpaper = wp || DEFAULT_WALL
@@ -318,4 +326,86 @@ window.slake = {
   onUpdate: on('update'),
   onSound: on('sound'),
   onWallpapers: on('wallpapers')
+}
+
+// ---------- Theme Studio, in a panel over the page ----------
+let studioOpts = {}
+let studioFrame = null
+function openStudio (opts) {
+  studioOpts = opts
+  if (studioFrame) studioFrame.remove()
+  studioFrame = document.createElement('iframe')
+  studioFrame.src = 'studio.html'
+  studioFrame.title = 'Theme Studio'
+  studioFrame.className = 'web-studio'
+  document.body.append(studioFrame)
+}
+function closeStudio () { if (studioFrame) { studioFrame.remove(); studioFrame = null } }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && studioFrame) closeStudio() })
+const studioStyle = document.createElement('style')
+studioStyle.textContent = '.web-studio { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 60; background: #141519; }'
+document.head.append(studioStyle)
+
+// Your own background pictures, kept in this browser's storage.
+const wallUrls = new Map()
+window.slakeWallUrl = (name) => {
+  name = String(name).replace(/[^A-Za-z0-9._-]/g, '')
+  if (!wallUrls.has(name)) {
+    try { wallUrls.set(name, URL.createObjectURL(new Blob([fs.readFileSync(WALLS + '/' + name)], { type: 'image/jpeg' }))) } catch { return '' }
+  }
+  return wallUrls.get(name)
+}
+async function pickWallpaper () {
+  const f = await pickFiles('image/*')
+  if (!f) return null
+  const url = URL.createObjectURL(f)
+  try {
+    const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url })
+    const scale = Math.min(1, 2560 / img.naturalWidth)
+    const c = document.createElement('canvas')
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale)
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+    const blob = await new Promise((resolve) => c.toBlob(resolve, 'image/jpeg', 0.86))
+    const data = Buffer.from(await blob.arrayBuffer())
+    const name = Buffer.from(require('@noble/hashes/sha2').sha256(data)).toString('hex').slice(0, 16) + '.jpg'
+    fs.mkdirSync(WALLS)
+    fs.writeFileSync(WALLS + '/' + name, data)
+    return 'file:' + name
+  } catch { throw new Error("Couldn't read that picture") } finally { URL.revokeObjectURL(url) }
+}
+
+// What the Studio (in its own frame) can call.
+window.slakeStudio = {
+  web: true,
+  studioInit: api(() => {
+    const st = readSettings()
+    const room = studioOpts.room && slake.rooms.get(studioOpts.room)
+    let customWalls = []
+    try { customWalls = fs.readdirSync(WALLS).filter((f) => /\.jpg$/.test(f)) } catch {}
+    return {
+      mode: studioOpts.mode || 'theme',
+      room: room ? { id: room.id, title: room.title, dm: !!room.dm } : null,
+      themes: listThemes().map((t) => ({ name: t, css: themeCSS(t) })),
+      current: studioOpts.edit || st.theme || 'default',
+      wallpapers: wallpapers(),
+      customWalls
+    }
+  }),
+  saveTheme: async (name, css) => {
+    let slug = String(name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    if (!slug || slug === 'default') throw new Error('Give your theme a name')
+    if (BUNDLED.includes(slug)) slug += '-mine'   // never collide with a theme Slake ships
+    const mine = myThemes()
+    mine[slug] = String(css || '')
+    try { localStorage.setItem(MINE, JSON.stringify(mine)) } catch { throw new Error("This browser's storage is full") }
+    THEMES[slug] = mine[slug]
+    const st = readSettings()
+    writeSettings({ ...st, theme: slug, recentThemes: [slug, ...(st.recentThemes || []).filter((x) => x !== slug)].slice(0, 50) })
+    send('theme', { themes: listThemes(), theme: slug, css: themeCSS(slug) })
+    return slug
+  },
+  setWallpaper: (scope, wp) => window.slake.setWallpaper(scope, wp),
+  pickWallpaper: () => pickWallpaper(),
+  closeStudio: async () => closeStudio(),
+  openThemes: async () => {}
 }

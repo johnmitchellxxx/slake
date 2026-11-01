@@ -112,7 +112,11 @@ before tagging: releases are public.
   the engine through bridge.js, which merges it with Hyperswarm into one
   swarm. Same rooms and proofs; a desktop in a room with web users passes
   messages between them. `SLAKE_RELAYS=ws://...` points it at test relays.
-- Theme Studio and custom backgrounds are desktop-only.
+- Theme Studio works on the web too: it opens in a frame over the app
+  (window.slakeStudio in host.js). Themes you make and your own background
+  pictures are kept in that browser only.
+- The default look is called Iris (purple accent). The old Default · Jade /
+  Iris / Rose / Brass themes are retired.
 - Publish from the Pantheon Replit shell:
 
       rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh

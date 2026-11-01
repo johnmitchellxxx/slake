@@ -791,8 +791,7 @@ $('composer').onsubmit = async (e) => {
 // "default-jade" reads as "Default · Jade", "after-hours" as "After Hours".
 function themeLabel (t) {
   const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1)
-  if (t === 'default') return 'Default · Lake'
-  if (t.startsWith('default-')) return 'Default · ' + t.slice(8).split('-').map(cap).join(' ')
+  if (t === 'default') return 'Iris'
   return t.split(/[-_]/).map(cap).join(' ')
 }
 
@@ -805,12 +804,9 @@ function renderThemes (themes, theme) {
     if (t === theme) o.selected = true
     sel.append(o)
   }
-  if (!s.web) {   // the Theme Studio is desktop-only for now
-    const make = el('option', null, 'Make your own…')
-    make.value = '__studio'
-    sel.append(make)
-  }
-  $('themesBtn').hidden = !!s.web
+  const make = el('option', null, 'Make your own…')
+  make.value = '__studio'
+  sel.append(make)
   sel.dataset.current = theme
 }
 $('themesBtn').onclick = () => s.openStudio({ mode: 'theme', edit: $('themeSelect').value })
