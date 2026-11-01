@@ -1,0 +1,23 @@
+/* slake-studio {"colors":{"bg":"#0f1d36","panel":"#2d4766","panel2":"#1a2c4c","text":"#eef2f8","muted":"#9fb0c8","accent":"#e8336d","line":"#223a5e"},"fonts":{"ui":"system-ui","messages":"system-ui","headings":"system-ui","logo":"Georgia"},"logoItalic":true,"size":15,"radius":10,"spacing":"comfortable","pictures":"rounded","glow":0,"grain":0,"shadows":0,"seeThrough":0,"bubbles":false,"cues":false} */
+/* Made in the Theme Studio. Open it again with Edit next to the theme list. */
+:root {
+  --bg: #0f1d36;
+  --panel: #2d4766;
+  --panel-2: #1a2c4c;
+  --text: #eef2f8;
+  --muted: #9fb0c8;
+  --accent: #e8336d;
+  --accent-text: #ffffff;
+  --line: #223a5e;
+  --radius: 10px;
+  --font: system-ui, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --wordmark: "Georgia", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --msg-size: 15px;
+}
+body { line-height: 1.45; }
+.body, .composer textarea { font-family: system-ui, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.room-title, .no-room h2, .dialog-title, .members-head, .picker-head { font-family: system-ui, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wordmark { font-style: italic; }
+.messages { padding: 16px 22px; }
+.msg { margin-top: 14px; }
+.avatar, .avatar > img { border-radius: 10px; }

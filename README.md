@@ -143,6 +143,9 @@ at the top, and save — the app repaints instantly. Included:
 - **Bubbles**: a texting layout, your messages on the right
 - **Showfile**: a lighting console, with a cue number on every message
 - **After Hours**: neon signs at night
+- **Orchard**: forest green and mandarin orange, with a touch of crest yellow
+- **Indigo Mint**: onyx and electric indigo, with a touch of tropical mint
+- **Harbor**: navy and seal blue, with a touch of crimson pink
 - **Necklace**: Lake Merritt after dark, with the string of lights across each room
 - **Terminal**: green on black
 
