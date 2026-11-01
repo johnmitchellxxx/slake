@@ -1,27 +1,70 @@
-/* slake-studio {"colors":{"bg":"#121215","panel":"#3a1fb8","panel2":"#1e1e26","text":"#eeeef6","muted":"#a4a4bd","accent":"#3ff2b8","line":"#2a2a35"},"fonts":{"ui":"system-ui","messages":"system-ui","headings":"system-ui","logo":"Georgia"},"logoItalic":true,"size":15,"radius":10,"spacing":"comfortable","pictures":"rounded","glow":25,"grain":0,"shadows":0,"seeThrough":0,"bubbles":false,"cues":false} */
-/* Made in the Theme Studio. Open it again with Edit next to the theme list. */
+/* Indigo Mint — Onyx Black and Electric Indigo, with one touch of Tropical Mint.
+   Studio-lit poster: heavy condensed type, a fancy italic, indigo light
+   spilling in from the corner.
+   Colors: #01010D onyx · #6331FB electric indigo · #88F9C0 tropical mint. */
 :root {
-  --bg: #121215;
-  --panel: #3a1fb8;
-  --panel-2: #1e1e26;
-  --text: #eeeef6;
-  --muted: #a4a4bd;
-  --accent: #3ff2b8;
-  --accent-text: #111111;
-  --line: #2a2a35;
-  --radius: 10px;
-  --font: system-ui, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --wordmark: "Georgia", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bg: #01010d;
+  --panel: #6331fb;
+  --panel-2: #14122a;
+  --text: #f4f2ff;
+  --muted: #9a95c4;
+  --accent: #88f9c0;
+  --accent-text: #01010d;
+  --line: #1d1a3a;
+  --radius: 14px;
+  --font: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+  --wordmark: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --fancy: Didot, "Bodoni 72", "Bodoni MT", "Playfair Display", Georgia, serif;
   --msg-size: 15px;
 }
-body { line-height: 1.45; }
-.body, .composer textarea { font-family: system-ui, system-ui, -apple-system, "Segoe UI", sans-serif; }
-.room-title, .no-room h2, .dialog-title, .members-head, .picker-head { font-family: system-ui, system-ui, -apple-system, "Segoe UI", sans-serif; }
-.wordmark { font-style: italic; }
-.messages { padding: 16px 22px; }
-.msg { margin-top: 14px; }
-.avatar, .avatar > img { border-radius: 10px; }
-.wordmark { color: #3ff2b8; text-shadow: 0 0 7px rgba(63, 242, 184, 0.53), 0 0 21px rgba(63, 242, 184, 0.16); }
-.space li.active { box-shadow: 0 0 13px rgba(63, 242, 184, 0.11); }
-button:not(.ghost):not(.secondary) { box-shadow: 0 0 10px rgba(63, 242, 184, 0.10); }
-.avatar .on { box-shadow: 0 0 0 2px var(--bg), 0 0 6px #3fcf7f; }
+
+/* Sidebar: a slab of electric indigo */
+.sidebar { border-right: 0; background: linear-gradient(170deg, #7446ff 0%, #6331fb 45%, #4a1fd6 100%); }
+.sidebar .brand, .sidebar .foot { border-color: rgba(255, 255, 255, 0.14); }
+.wordmark { font-family: var(--display); font-style: normal; font-weight: 400; text-transform: uppercase; color: #fff; letter-spacing: 0.01em; }
+.wordmark.small { font-size: 46px; line-height: 0.9; }
+.me-line { color: rgba(255, 255, 255, 0.7); }
+.me-line b { color: #fff; }
+.space-name { color: rgba(255, 255, 255, 0.62); font-weight: 700; letter-spacing: 0.18em; }
+.space li { color: rgba(255, 255, 255, 0.82); border-radius: 999px; padding: 6px 12px; font-weight: 500; }
+.space li:hover { background: rgba(1, 1, 13, 0.18); color: #fff; }
+.space li.active { background: var(--accent); color: #01010d; font-weight: 700; }
+.space li.unread { color: #fff; }
+.space li .dot { background: var(--accent); }
+.new-room input { color: #fff; }
+.new-room input::placeholder { color: rgba(255, 255, 255, 0.55); }
+.sidebar .foot input, .sidebar .foot select { background: rgba(1, 1, 13, 0.28); border-color: transparent; color: #fff; }
+.sidebar .foot input::placeholder { color: rgba(255, 255, 255, 0.6); }
+.sidebar .foot button.ghost { color: #fff; }
+
+/* Room: black, with indigo studio light from the top right */
+.room { background: radial-gradient(ellipse 70% 60% at 100% 0%, rgba(99, 49, 251, 0.42), transparent 70%), var(--bg); }
+.messages, .room-head { background: transparent; }
+.room-head { border-bottom: 0; padding-top: 16px; }
+.room-title > div:first-child { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; }
+.room-title .hash { font-family: var(--fancy); font-style: italic; font-weight: 400; text-transform: none; color: var(--accent); margin-right: 6px; }
+.room-sub { margin-top: 6px; }
+.no-room h2 { font-family: var(--fancy); font-style: italic; font-weight: 400; font-size: 48px; color: #fff; }
+
+.day { display: flex; align-items: center; justify-content: center; gap: 14px; letter-spacing: 0.32em; font-size: 10px; font-weight: 700; color: var(--muted); }
+.day::before, .day::after { content: ""; width: 40px; height: 1px; background: var(--muted); opacity: 0.6; }
+
+.name { color: #fff; }
+.body a { color: var(--accent); }
+.avatar, .avatar > img { border-radius: 50%; }
+
+/* Files: frosted indigo card, mint button */
+.file { background: rgba(99, 49, 251, 0.18); border: 1px solid rgba(136, 249, 192, 0.18); backdrop-filter: blur(8px); }
+.file .bar span { background: var(--accent); }
+.file .file-act button { background: var(--accent); color: #01010d; }
+.file.gone { background: transparent; border: 1px dashed var(--line); }
+
+/* Buttons: mint pills with tracked lettering and an arrow */
+button { border-radius: 999px; }
+button:not(.ghost):not(.secondary) { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; font-weight: 700; }
+.composer { border-top: 0; }
+.composer textarea { background: rgba(20, 18, 42, 0.85); border: 1px solid var(--line); border-radius: 22px; padding: 11px 18px; }
+.composer textarea:focus { border-color: var(--accent); }
+.composer button[type="submit"] { padding: 10px 20px; box-shadow: 0 0 24px rgba(136, 249, 192, 0.25); }
+.composer button[type="submit"]::after { content: "  →"; }
