@@ -27,7 +27,7 @@ fs.writeFileSync(path.join(out, 'index.html'), `<!doctype html>
   header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid #24262c; }
   header b { font: italic 700 20px Georgia, serif; color: #5b9dff; }
   header small { color: #8e8d98; }
-  .pills { display: flex; gap: 6px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
   .pills button { flex: none; border: 1px solid #2e3037; background: #1b1c21; color: #cfcdd8; border-radius: 999px; padding: 6px 12px; font: inherit; cursor: pointer; }
   .pills button.on { background: #5b9dff; border-color: #5b9dff; color: #04121f; font-weight: 600; }
   main { padding: 14px; min-height: 0; min-width: 0; }
