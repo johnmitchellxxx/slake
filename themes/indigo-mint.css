@@ -22,7 +22,7 @@
 /* Sidebar: a slab of electric indigo */
 .sidebar { border-right: 0; background: linear-gradient(170deg, #7446ff 0%, #6331fb 45%, #4a1fd6 100%); }
 .sidebar .brand, .sidebar .foot { border-color: rgba(255, 255, 255, 0.14); }
-.wordmark { font-family: var(--display); font-style: normal; font-weight: 400; text-transform: uppercase; color: #fff; letter-spacing: 0.01em; }
+.wordmark { font-family: var(--display); font-style: italic; font-weight: 400; color: #fff; letter-spacing: 0.01em; }
 .wordmark.small { font-size: 46px; line-height: 0.9; }
 .me-line { color: rgba(255, 255, 255, 0.7); }
 .me-line b { color: #fff; }
@@ -62,7 +62,7 @@
 
 /* Buttons: mint pills with tracked lettering and an arrow */
 button { border-radius: 999px; }
-button:not(.ghost):not(.secondary) { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; font-weight: 700; }
+button:not(.ghost):not(.secondary):not(.me-line) { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; font-weight: 700; }
 .composer { border-top: 0; }
 .composer textarea { background: rgba(20, 18, 42, 0.85); border: 1px solid var(--line); border-radius: 22px; padding: 11px 18px; }
 .composer textarea:focus { border-color: var(--accent); }

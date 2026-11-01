@@ -20,7 +20,7 @@
 /* Sidebar: seal blue, with a pink waterline down its edge */
 .sidebar { border-right: 4px solid var(--accent); }
 .sidebar .brand, .sidebar .foot { border-color: rgba(11, 23, 51, 0.25); }
-.wordmark { font-family: var(--display); font-style: normal; font-weight: 400; text-transform: uppercase; color: #fff; letter-spacing: 0.01em; }
+.wordmark { font-family: var(--display); font-style: italic; font-weight: 400; color: #fff; letter-spacing: 0.01em; }
 .wordmark.small { font-size: 46px; line-height: 0.9; text-shadow: 3px 3px 0 #0b1733; }
 .me-line { color: rgba(255, 255, 255, 0.75); }
 .me-line b { color: #fff; }
@@ -61,7 +61,7 @@
 .file.gone { background: transparent; color: var(--text); border: 1px dashed var(--line); box-shadow: none; }
 
 button { border-radius: 999px; }
-button:not(.ghost):not(.secondary) { font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 16px; }
+button:not(.ghost):not(.secondary):not(.me-line) { font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 16px; }
 .file .file-act button, .room-actions button, .ttl button, #memberList li button { font-size: 13px; }
 .composer { border-top: 0; }
 .composer textarea { background: var(--panel-2); border: 2px solid transparent; border-radius: 22px; padding: 11px 18px; }

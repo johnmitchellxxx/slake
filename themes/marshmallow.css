@@ -1,0 +1,85 @@
+/* Marshmallow — Marshmallow White and Galactic Violet, with Bubblegum Pink.
+   Clean white lab, a violet-to-pink glow rising from the corner,
+   glass cards, black pill for where you are.
+   Colors: #F0F0F0 marshmallow · #5B3BFF galactic violet · #E96BD8 bubblegum.
+   (The reel's labels for the last two didn't match their swatches,
+   so these are matched to the swatches by eye.) */
+:root {
+  --bg: #f0f0f0;
+  --panel: rgba(255, 255, 255, 0.55);
+  --panel-2: rgba(255, 255, 255, 0.8);
+  --text: #111118;
+  --muted: #7b7b8e;
+  --accent: #5b3bff;
+  --accent-text: #fff;
+  --line: rgba(17, 17, 24, 0.08);
+  --radius: 16px;
+  --font: "Avenir Next", Avenir, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --wordmark: "Avenir Next", Avenir, "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --msg-size: 15px;
+}
+
+/* The glow: violet and pink rising from the bottom-left */
+body {
+  background:
+    radial-gradient(ellipse 55% 45% at 0% 100%, rgba(233, 107, 216, 0.55), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 30% 105%, rgba(91, 59, 255, 0.45), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 70% 30%, #ffffff, transparent 70%),
+    #f0f0f0;
+  background-attachment: fixed;
+}
+
+/* Frosted glass */
+.sidebar, .members, .search, .pending, .dialog {
+  background: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+.sidebar .brand, .sidebar .foot { border-color: var(--line); }
+
+/* Type: light capitals, tight, like a lab readout */
+.wordmark { font-family: var(--wordmark); font-style: italic; font-weight: 300; letter-spacing: -0.02em; color: var(--text); }
+.wordmark.small { font-size: 34px; line-height: 1; }
+.wordmark.small::after { content: ""; display: inline-block; width: 26px; height: 8px; margin-left: 8px; vertical-align: middle; background: repeating-linear-gradient(115deg, var(--accent) 0 3px, transparent 3px 6px); }
+.room-head { border-bottom: 0; padding-top: 18px; }
+.room-title > div:first-child { font-weight: 300; font-size: 30px; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.05; }
+.room-title .hash { color: var(--accent); font-weight: 300; }
+.no-room h2 { font-family: var(--wordmark); font-style: normal; font-weight: 300; text-transform: uppercase; font-size: 40px; letter-spacing: -0.02em; }
+.space-name, .day { font-size: 10px; letter-spacing: 0.22em; font-weight: 600; color: var(--muted); }
+.day { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.day::before, .day::after { content: ""; width: 36px; height: 1px; background: currentColor; opacity: 0.4; }
+
+/* Rooms list: a black pill for where you are */
+.space li { border-radius: 999px; padding: 6px 12px; color: #4a4a5c; }
+.space li:hover { background: rgba(255, 255, 255, 0.85); color: var(--text); }
+.space li.active { background: #111118; color: #fff; font-weight: 600; }
+.space li.active .live { background: #fff; }
+.space li .dot { background: #e96bd8; }
+
+.messages { background: transparent; }
+.name { font-weight: 700; }
+.body a { color: var(--accent); }
+.avatar, .avatar > img { border-radius: 50%; }
+.avatar { box-shadow: 0 0 0 2px #fff, 0 4px 12px rgba(91, 59, 255, 0.18); }
+
+/* Cards and inputs: white glass */
+.file, .composer textarea, .sidebar .foot input, .sidebar .foot select {
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 28px rgba(17, 17, 24, 0.06);
+}
+.file { border-radius: 20px; }
+.file .bar span { background: linear-gradient(90deg, #5b3bff, #e96bd8); }
+.file.gone { background: transparent; border: 1px dashed rgba(17, 17, 24, 0.2); box-shadow: none; }
+.composer { border-top: 0; }
+.composer textarea { border-radius: 24px; padding: 12px 18px; }
+.composer textarea:focus { border-color: var(--accent); }
+
+/* Buttons: violet-to-pink pills; quiet ones outlined */
+button { border-radius: 999px; }
+button:not(.ghost):not(.secondary):not(.me-line) { background: linear-gradient(100deg, #5b3bff, #e96bd8); box-shadow: 0 8px 22px rgba(91, 59, 255, 0.28); }
+button.secondary { background: transparent; border: 1px solid rgba(17, 17, 24, 0.2); color: var(--text); }
+.composer button[type="submit"] { padding: 11px 24px; }
+.scrim { background: rgba(17, 17, 24, 0.2); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.toast { background: #111118; color: #fff; }
