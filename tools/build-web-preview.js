@@ -35,7 +35,7 @@ fs.writeFileSync(path.join(out, 'index.html'), `<!doctype html>
 </style>
 </head>
 <body>
-<header><b>slake</b><div class="pills" id="pills"></div><small>themes · v${version}</small></header>
+<header><b>slake</b><div class="pills" id="pills"></div><small>sample chat · not a real account · v${version}</small></header>
 <main><iframe id="app" title="Slake"></iframe></main>
 <script>
 // pantheon.live/slake (no slash) would break the relative links, so add one.
