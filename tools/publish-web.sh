@@ -19,15 +19,11 @@ if [ -z "${VERCEL_TOKEN:-}" ]; then
   exit 1
 fi
 
-echo "==> [1/3] Building the Slake page..."
+echo "==> [1/2] Building the Slake page..."
 node "$HERE/tools/build-web-preview.js" "$OUT"
 
-echo "==> [2/3] Deploying to Vercel..."
-cd "$OUT"
-npx --yes vercel@latest deploy --prod --yes --scope "$SCOPE" --token "$VERCEL_TOKEN"
-
-echo "==> [3/3] Pointing $DOMAIN at it..."
-npx --yes vercel@latest domains add "$DOMAIN" slake --scope "$SCOPE" --token "$VERCEL_TOKEN" 2>&1 | tail -5 || true
+echo "==> [2/2] Deploying to Vercel and pointing $DOMAIN at it..."
+node "$HERE/tools/vercel-deploy.js" "$OUT" slake "$DOMAIN" "$SCOPE"
 
 echo ""
 echo "==> Done. Open https://$DOMAIN"
