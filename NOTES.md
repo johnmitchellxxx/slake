@@ -82,10 +82,13 @@ before tagging: releases are public.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
   invite is sealed to the other person and delivered once you're connected.)
 
-## Theme preview on the web
+## Web page (slake.pantheon.live)
 
 `node tools/build-web-preview.js <folder>` builds a static page: the real UI
-with sample chat (`ui/demo.js`) and a row of theme buttons. It lives at
-pantheon.live/slake. To update it, in the Pantheon Replit shell (repo root):
+with sample chat (`ui/demo.js`) and a row of theme buttons. For now it's a
+theme preview; the real web version of Slake will replace it at the same
+address. `tools/publish-web.sh` builds it and deploys it to its own Vercel
+project ("slake") at slake.pantheon.live. It needs VERCEL_TOKEN, which lives
+in the Pantheon Replit, so run it from that Replit's shell:
 
-    rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && node /tmp/slake/tools/build-web-preview.js artifacts/pantheon/public/slake && bash scripts/publish-pantheon.sh
+    rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh
