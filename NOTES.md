@@ -45,7 +45,7 @@ language, keep the window clean and minimal, keep it hackable.
 - You are the key pair this device made. A second device is a second person.
   The keys live in `identity.json`; copy that file to move yourself.
 - Decided (Nov 2026): the old name + password login, device sync and "keeper"
-  machinery were removed. "Erase Slake on this device" in the picture panel
+  machinery were removed. "Exit and Reset Slake on this Device" in the picture panel
   wipes the local data and starts over.
 - The 5-letter invite codes were removed too: the lounge name is the code.
 

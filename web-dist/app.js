@@ -921,7 +921,7 @@ $('meLine').onclick = () => {
   $('nameChangeInput').value = me.name
 }
 $('logoutBtn').onclick = async () => {
-  const ok = await s.confirm({ action: 'Erase', message: 'Erase Slake on this device?', detail: "Your rooms, messages and files here are deleted and you start over with a new name. Other people keep what they already have. Themes and settings stay." })
+  const ok = await s.confirm({ action: 'Reset', message: 'Exit and reset Slake on this device?', detail: "Your spaces, messages and files here are deleted and you start over with a new name. Other people keep what they already have. Themes and settings stay." })
   if (ok) await s.logout()
 }
 $('nameChange').onsubmit = (e) => { e.preventDefault(); rename($('nameChangeInput').value); $('avatarPicker').hidden = true }
