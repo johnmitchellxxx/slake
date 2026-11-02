@@ -111,12 +111,12 @@ function nameOf (key) {
   return best ? best.name : 'Someone'
 }
 
-function toast (text) {
+function toast (text, ms = 2200) {
   const t = $('toast')
   t.textContent = text
   t.hidden = false
   clearTimeout(toast.timer)
-  toast.timer = setTimeout(() => { t.hidden = true }, 2200)
+  toast.timer = setTimeout(() => { t.hidden = true }, ms)
 }
 
 function applyTheme (css) { $('theme').textContent = css || '' }
@@ -130,7 +130,6 @@ const loungeLink = (title) => `${SITE}#${encodeURIComponent(title.trim().replace
 
 let loungeFromLink = null  // a lounge name from the link
 let loungeMode = null      // null (normal chat) | 'start' | 'ready' | 'join'
-let startedLounge = null   // { id, title, link } once you've started one
 if (s.web && location.hash.length > 1) {
   let h = ''
   try { h = decodeURIComponent(location.hash.slice(1)) } catch {}
@@ -156,7 +155,7 @@ function renderLounge () {
   $('welcome').hidden = true
   $('chat').hidden = true
   $('lounge').hidden = false
-  for (const [mode, id] of [['start', 'loungeStart'], ['ready', 'loungeReady'], ['join', 'loungeJoin']]) $(id).hidden = loungeMode !== mode
+  for (const [mode, id] of [['start', 'loungeStart'], ['join', 'loungeJoin']]) $(id).hidden = loungeMode !== mode
   $('loungeError').textContent = ''
 
   if (loungeMode === 'start') {
@@ -164,12 +163,6 @@ function renderLounge () {
     $('createAsk').hidden = true
     $('whoAsk').hidden = true
     $('loungeName').focus()
-  }
-  if (loungeMode === 'ready') {
-    $('loungeTitle').textContent = startedLounge.title
-    const msg = `Join my space "${startedLounge.title}" on Slake: ${startedLounge.link}`
-    $('shareText').href = `sms:?&body=${encodeURIComponent(msg)}`
-    $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my space on Slake')}&body=${encodeURIComponent(msg)}`
   }
   if (loungeMode === 'join') {
     const info = { title: loungeFromLink }
@@ -208,10 +201,12 @@ async function arrive (mode, title) {
   if (mode === 'join') busy.textContent = 'Looking…'
   try {
     if (mode === 'make') {
+      const copied = await copyText(loungeLink(title))   // first, while the click still counts
       const id = await s.joinLounge(title)
-      startedLounge = { id, title, link: loungeLink(title) }
-      loungeMode = 'ready'
-      renderLounge()
+      loungeMode = null
+      await refresh()
+      openRoom(id)
+      toast(copied ? 'Link copied to your clipboard. Send it to anyone you want here.' : 'Space made. Right-click it to copy the link.', 3500)
     } else {
       const had = (await s.state()).rooms.some((r) => r.lounge && r.title.toLowerCase() === title.toLowerCase())
       const id = await s.joinLounge(title)
@@ -260,30 +255,20 @@ $('whoForm').onsubmit = async (e) => {
   } catch (err) { $('loungeError').textContent = err.message }
 }
 
-$('createYes').onclick = () => {
-  startedLounge = { id: probing.id, title: probing.title, link: loungeLink(probing.title) }
+$('createYes').onclick = async () => {
+  const { id, title } = probing
   probing = null
-  loungeMode = 'ready'
-  renderLounge()
+  const copied = await copyText(loungeLink(title))
+  loungeMode = null
+  await refresh()
+  openRoom(id)
+  toast(copied ? 'Link copied to your clipboard. Send it to anyone you want here.' : 'Space made. Right-click it to copy the link.', 3500)
 }
 $('createNo').onclick = async () => {
   try { await s.leaveRoom(probing.id) } catch {}
   probing = null
   loungeMode = 'start'
   renderLounge()   // keeps what you typed so you can fix it
-}
-
-$('loungeCopy').onclick = async () => {
-  if (await copyText(startedLounge.link)) toast('Link copied. Send it to anyone you want in the space.')
-  else toast('Could not copy. Select the link from the address bar.')
-}
-
-$('goLounge').onclick = async () => {
-  const id = startedLounge.id
-  startedLounge = null
-  loungeMode = null
-  await refresh()
-  openRoom(id)
 }
 
 async function joinFromLink (you) {
@@ -302,7 +287,7 @@ $('joinNameForm').onsubmit = (e) => {
   if (you) joinFromLink(you)
 }
 
-$('howBtn').onclick = $('howBtn2').onclick = () => { $('howDialog').hidden = false }
+$('howBtn').onclick = () => { $('howDialog').hidden = false }
 $('howClose').onclick = () => { $('howDialog').hidden = true }
 
 // ---------- Welcome (desktop; the web opens on a lounge, above) ----------
