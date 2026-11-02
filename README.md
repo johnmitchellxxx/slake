@@ -196,7 +196,7 @@ is what wipes it. (The web version keeps history in the browser's own storage.)
 
 ## Where your stuff lives
 
-On a Mac: `~/Library/Application Support/slake/`
+On a Mac: `Documents/Slake/` (on Windows, `Documents\Slake\`). Older installs are moved there automatically the first time the new version opens. Your themes and settings stay in the app's own folder (`~/Library/Application Support/slake/` on a Mac).
 - `data/identity.json` — **your private key. Back this file up.** Lose it and
   that identity is gone (there are no accounts or passwords).
 - `data/rooms/<id>.json` — a room's name, owner and keys.

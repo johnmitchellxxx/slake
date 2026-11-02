@@ -75,7 +75,7 @@ function buildTrayMenu () {
       checked: login,
       click: (item) => { app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true }); buildTrayMenu() }
     },
-    { label: 'Open Slake storage folder', click: () => shell.openPath(app.getPath('userData')) },
+    { label: 'Open Slake storage folder', click: () => { const d = path.dirname(storageDir()); try { fs.mkdirSync(d, { recursive: true }) } catch {} shell.openPath(profile ? storageDir() : d) } },
     { type: 'separator' },
     { label: 'Quit Slake', click: () => { quitting = true; app.quit() } }
   ]))
@@ -148,6 +148,24 @@ function makeTray () {
   buildTrayMenu()
   // Windows: click the tray icon to open. (On a Mac, clicking shows the menu.)
   if (!isMac) tray.on('click', showWindow)
+}
+// Where your history lives: a plain "Slake" folder in Documents (a second test
+// copy started with --profile keeps its own, out of the way).
+function storageDir () {
+  return profile ? path.join(app.getPath('userData'), 'data') : path.join(app.getPath('documents'), 'Slake', 'data')
+}
+// Older versions kept it inside the app's hidden folder: bring it over once.
+function moveOldStorage () {
+  if (profile) return
+  const old = path.join(app.getPath('userData'), 'data')
+  const now = storageDir()
+  try {
+    if (fs.existsSync(path.join(old, 'identity.json')) && !fs.existsSync(path.join(now, 'identity.json'))) {
+      fs.mkdirSync(path.dirname(now), { recursive: true })
+      fs.cpSync(old, now, { recursive: true })
+      fs.rmSync(old, { recursive: true, force: true })
+    }
+  } catch (e) { console.error('Could not move your history to Documents:', e.message) }
 }
 const themesDir = () => path.join(app.getPath('userData'), 'themes')
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
@@ -364,7 +382,8 @@ app.whenReady().then(async () => {
     onMessage: (fn) => ipcMain.on('bridge', (e, m) => { if (bridgeWin && e.sender === bridgeWin.webContents) fn(m) })
   })
   openBridge()
-  slake = new Slake({ dataDir: path.join(app.getPath('userData'), 'data'), makeSwarm: () => new BothSwarm(new Hyperswarm(), bridge) })
+  moveOldStorage()
+  slake = new Slake({ dataDir: storageDir(), makeSwarm: () => new BothSwarm(new Hyperswarm(), bridge) })
   await slake.start()
 
   slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]) })
