@@ -76,23 +76,8 @@
       <form id="nameForm">
         <label for="nameInput">Name</label>
         <input id="nameInput" maxlength="40" autocomplete="username" placeholder="What people call you" required>
-        <label for="newPassword">Password</label>
-        <input id="newPassword" type="password" autocomplete="current-password" required>
         <button type="submit">Continue</button>
-        <p class="hint">Already use Slake? Same name and password, and your rooms come with you.</p>
-        <details class="no-server">
-          <summary>No server, so your account lives only on your devices. <u>Why?</u></summary>
-          <p>Slake has no server, so your account lives only on your own devices.</p>
-          <p>As long as one of your computers stays logged in, you can just log in anywhere else with your name and password, and your account (your rooms, messages, name and picture) will be copied over. That one computer needs to be on and running Slake at that moment.</p>
-          <p>If you log out of everything, your account is gone for good. Nobody can bring it back, not even us.</p>
-          <p>Phones and browsers can clear their storage without asking, so don't count on them. Install the desktop app and leave it logged in to keep your account safe. Or just be a leaf. Either way.</p>
-        </details>
       </form>
-      <div id="loginWait" class="login-wait" hidden>
-        <div class="spinner"></div>
-        <p><b>Checking for your other devices…</b></p>
-        <button id="cancelLogin" class="ghost" type="button">Skip, I'm new</button>
-      </div>
       <p id="welcomeError" class="error" role="alert"></p>
     </div>
   </section>
@@ -130,13 +115,7 @@
         </form>
         <button id="pickDefault" class="ghost full">Back to the default</button>
         <p class="hint">Everyone in your rooms sees your name and picture.</p>
-        <div class="picker-head pw-head"><span>Password</span></div>
-        <p id="pwStatus" class="hint"></p>
-        <form id="pwForm" class="emoji-form">
-          <input id="pwInput" type="password" autocomplete="new-password" placeholder="New password">
-          <button type="submit" class="secondary">Save</button>
-        </form>
-        <button id="logoutBtn" class="ghost full" type="button">Log out of this computer</button>
+        <button id="logoutBtn" class="ghost full" type="button">Erase Slake on this device…</button>
       </div>
 
       <nav id="spaces"></nav>

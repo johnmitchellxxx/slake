@@ -421,11 +421,8 @@ app.whenReady().then(async () => {
   handle('update', () => update)
   handle('openUpdate', () => { if (update) shell.openExternal(update.url) })
   handle('setName', (n) => slake.setName(n))
-  handle('setPassword', (pw) => slake.setPassword(pw))
-  handle('login', ({ name, password, timeout }) => slake.login(name, password, { timeout: Math.min(Number(timeout) || 120000, 120000) }))
-  handle('cancelLogin', () => slake.cancelLogin())
-  // Log out: forget who you are on this computer (themes and settings stay),
-  // then start over at the name-and-password screen.
+  // Erase: forget who you are on this computer (themes and settings stay),
+  // then start over at the name screen.
   handle('logout', async () => {
     const dir = slake.dataDir
     slake.removeAllListeners()

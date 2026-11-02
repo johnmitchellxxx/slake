@@ -36,22 +36,17 @@ language, keep the window clean and minimal, keep it hackable.
 - Names: the emoji pair (from the key) is hidden unless two people share a
   name. Whoever took the name second is asked to rename.
 
-## Login (name + password)
+## Who you are (no passwords)
 
-- The welcome screen asks for a name and a password, nothing else. Any
-  password is allowed (owner's call; revisit past ~5 users).
-- Name + password go through a slow hash into a private "locker" meeting
-  point. Your devices find each other there, prove they know it, and swap a
-  sealed keyring: identity keys, every room's keys, rooms left, profile.
-- New device: it waits ~8 seconds for one of your devices. If none answers
-  it starts as a new person; when it later meets your real device and hasn't
-  been used yet, it turns into you automatically.
-- Existing users set a password from the panel under their name.
-- Decided: no recovery. An account lives only as long as one of its devices
-  stays logged in; log out everywhere and it's gone. Said plainly on the
-  sign-up screen ("Why?") and in the Log out warning, which checks whether
-  another of your devices is connected right now. Desktop = the keeper.
-- No Google sign-in: that needs a server in the middle.
+- The welcome asks for a name, nothing else. On the web, a visitor starts a
+  lounge (or opens someone's link) and gives a name; no account, no login.
+- You are the key pair this device made. A second device is a second person.
+  The keys live in `identity.json`; copy that file to move yourself.
+- Decided (Nov 2026): the old name + password login, device sync and "keeper"
+  machinery were removed. "Erase Slake on this device" in the picture panel
+  wipes the local data and starts over.
+- Short invite codes (5 letters) stay; they use a slow hash so they're hard
+  to guess, and are not passwords.
 
 ## Theme hooks
 
@@ -93,7 +88,7 @@ before tagging: releases are public.
 - Theme Studio and wallpapers are built (see below). Glass-style window
   vibrancy is still off.
 - Plugins: only from the user's own plugins folder, never run from chat.
-- Phone app comes after login + device sync.
+- Phone app: the web version works as an installed phone app for now.
 - Friends list. (DMs exist: a DM is a two-person room with `dm: true`; the
   invite is sealed to the other person and delivered once you're connected.)
 

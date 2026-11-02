@@ -232,33 +232,15 @@ $('joinNameForm').onsubmit = async (e) => {
 $('howBtn').onclick = $('howBtn2').onclick = () => { $('howDialog').hidden = false }
 $('howClose').onclick = () => { $('howDialog').hidden = true }
 
-// ---------- Welcome ----------
-// One form: if this name and password belong to someone on another device,
-// you become them; if nothing answers in a few seconds, you're new.
+// ---------- Welcome (desktop; the web opens on a lounge, above) ----------
+// One field: your name. No account, no password.
 $('nameForm').onsubmit = async (e) => {
   e.preventDefault()
   const name = $('nameInput').value.trim()
-  const pw = $('newPassword').value
-  if (!name || !pw) return
-  waiting(true)
-  try {
-    await s.login(name, pw, 8000)
-  } catch {
-    try {
-      await s.setName(name)
-      await s.setPassword(pw)
-    } catch (err) { waiting(false); $('welcomeError').textContent = err.message; return }
-  }
-  $('newPassword').value = ''
-  waiting(false)
+  if (!name) return
+  try { await s.setName(name) } catch (err) { $('welcomeError').textContent = err.message; return }
   await refresh()
 }
-function waiting (on) {
-  $('nameForm').hidden = on
-  $('loginWait').hidden = !on
-  $('welcomeError').textContent = ''
-}
-$('cancelLogin').onclick = () => s.cancelLogin()
 
 // ---------- Sidebar ----------
 function roomItem (r) {
@@ -954,35 +936,10 @@ async function setAvatar (a) {
 $('meLine').onclick = () => {
   $('avatarPicker').hidden = !$('avatarPicker').hidden
   $('nameChangeInput').value = me.name
-  showPassword()
-}
-function showPassword () {
-  const st = $('pwStatus')
-  st.textContent = ''
-  if (me.hasPassword) {
-    st.append('Log in on your other devices as ', el('b', null, me.loginName || me.name), ' with your password. Type a new one to change it.')
-  } else {
-    st.textContent = 'Set a password to log in as you on your phone or another computer.'
-  }
 }
 $('logoutBtn').onclick = async () => {
-  const st = await s.state()
-  const others = (st.me && st.me.myDevicesOnline) || 0
-  const ok = !me.hasPassword
-    ? await s.confirm({ action: 'Log out anyway', message: "You haven't set a password.", detail: "Without one you can't log back in as yourself, and your account is gone for good. Set a password first (just above) unless you're sure." })
-    : others > 0
-      ? await s.confirm({ action: 'Log out', message: 'Log out of Slake here?', detail: `Another of your devices is connected right now, so your account is safe there. To come back, log in as ${me.loginName || me.name} with your password while it's on.` })
-      : await s.confirm({ action: 'Log out', message: 'Is this the last place you\'re logged in?', detail: `None of your other devices is connected right now. If no other computer is still logged in as ${me.loginName || me.name}, logging out deletes your account for good. Slake has no server, so nobody can bring it back.` })
+  const ok = await s.confirm({ action: 'Erase', message: 'Erase Slake on this device?', detail: "Your rooms, messages and files here are deleted and you start over with a new name. Other people keep what they already have. Themes and settings stay." })
   if (ok) await s.logout()
-}
-$('pwForm').onsubmit = async (e) => {
-  e.preventDefault()
-  try {
-    me = await s.setPassword($('pwInput').value)
-    $('pwInput').value = ''
-    showPassword()
-    toast('Password saved')
-  } catch (err) { toast(err.message) }
 }
 $('nameChange').onsubmit = (e) => { e.preventDefault(); rename($('nameChangeInput').value); $('avatarPicker').hidden = true }
 $('pickerClose').onclick = () => { $('avatarPicker').hidden = true }
@@ -1112,7 +1069,7 @@ async function refresh () {
   if (!me.name) {
     $('welcome').hidden = false
     $('chat').hidden = true
-    if ($('loginWait').hidden) $('nameInput').focus()
+    $('nameInput').focus()
     return
   }
   $('welcome').hidden = true

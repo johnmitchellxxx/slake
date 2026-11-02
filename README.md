@@ -185,7 +185,7 @@ the networking is all in `core.js`.
 
 On a Mac: `~/Library/Application Support/slake/`
 - `data/identity.json` — **your private key. Back this file up.** Lose it and
-  that identity is gone (there's no "forgot password").
+  that identity is gone (there are no accounts or passwords).
 - `data/rooms/<id>.json` — a room's name, owner and keys.
 - `data/rooms/<id>.ndjson` — that room's history, one record per line.
 - `data/files/` — files that haven't disappeared yet. Slake empties this on its own.

@@ -253,9 +253,6 @@ window.slake = {
   web: true,
   state: api(() => state()),
   setName: api((n) => slake.setName(n)),
-  setPassword: api((pw) => slake.setPassword(pw)),
-  login: api((name, password, timeout) => slake.login(name, password, { timeout: Math.min(Number(timeout) || 120000, 120000) })),
-  cancelLogin: api(() => slake.cancelLogin()),
   logout: api(async () => {
     slake.removeAllListeners()
     await slake.stop()
