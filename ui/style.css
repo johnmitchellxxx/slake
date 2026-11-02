@@ -344,3 +344,44 @@ button.confirm { color: var(--danger) !important; }
 .card.lounge label { text-align: left; }
 .card.lounge #loungeReady > button:not(.ghost):not(.lounge-name), .card.lounge #loungeStart button[type=submit], .card.lounge #loungeJoin button[type=submit] { width: 100%; padding: 12px; font-size: 16px; }
 @media (max-width: 640px) { #lounge { padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); } .card.lounge { padding: 0; } }
+
+/* Phones: text 25% bigger */
+@media (max-width: 640px) {
+  body { font-size: calc(var(--msg-size) * 1.25); }
+
+  .card label { font-size: 16.2px; }
+  .card .ghost.full { font-size: 16.2px; }
+  .or { font-size: 16.2px; }
+  .error { font-size: 17.5px; }
+  .wordmark.small { font-size: 25px; }
+  .me-line { font-size: 16.2px; }
+  .space-name { font-size: 13.8px; }
+  .new-room input, .join input { font-size: 17.5px; }
+  .join input { font-size: 16.2px; }
+  .theme-row select { font-size: 16.2px; }
+  .no-room h2 { font-size: 35px; }
+  .room-title { font-size: 21.2px; }
+  .room-sub { font-size: 15px; }
+  .room-actions button { font-size: 16.2px; }
+  .banner { font-size: 17.5px; }
+  #memberList li { font-size: 17.5px; }
+  #memberList li .tag { font-size: 13.8px; }
+  #memberList li button { font-size: 15px; }
+  .hint { font-size: 15px; }
+  .avatar { font-size: 22.5px; }
+  .badge { font-size: 15px; }
+  .time { font-size: 15px; }
+  .note { font-size: 16.2px; }
+  .day { font-size: 15px; }
+  .toast { font-size: 17.5px; }
+  .file-icon { font-size: 22.5px; }
+  .file-size { font-size: 16.2px; }
+  .ttl-label { font-size: 16.2px; }
+  .ttl button { font-size: 16.2px; }
+  .file .file-icon { font-size: 30px; }
+  .file .file-sub { font-size: 15px; }
+  .file .file-act button { font-size: 16.2px; }
+  .drop { font-size: 22.5px; }
+  .result-where { font-size: 15px; }
+  .space li { font-size: 21px; }
+}
