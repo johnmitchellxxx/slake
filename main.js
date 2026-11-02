@@ -75,6 +75,7 @@ function buildTrayMenu () {
       checked: login,
       click: (item) => { app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true }); buildTrayMenu() }
     },
+    { label: 'Open Slake storage folder', click: () => shell.openPath(app.getPath('userData')) },
     { type: 'separator' },
     { label: 'Quit Slake', click: () => { quitting = true; app.quit() } }
   ]))

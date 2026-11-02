@@ -184,6 +184,16 @@ rooms) to remove its author.
 Coder friends can go further: the screen is plain HTML/CSS/JS in `ui/`,
 the networking is all in `core.js`.
 
+## Permanent on the desktop
+
+The desktop app keeps everything: every space's history is saved to a folder
+on your computer and stays there until you reset Slake. Nothing expires except
+files you sent as fleeting (1 hour / 1 day / 1 week). Leaving a space takes it
+off your sidebar but keeps a backup copy of its history in the folder. To see
+the folder, click the Slake icon in the menu bar (system tray on Windows) and
+choose **Open Slake storage folder**. **Exit and Reset Slake on this Device**
+is what wipes it. (The web version keeps history in the browser's own storage.)
+
 ## Where your stuff lives
 
 On a Mac: `~/Library/Application Support/slake/`
