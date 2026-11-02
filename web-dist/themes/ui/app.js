@@ -164,7 +164,10 @@ function renderLounge () {
 
   if (loungeMode === 'start') {
     if (!$('startName').value && me && me.name) $('startName').value = me.name
-    $('startName').focus()
+    $('startNameRow').hidden = !!(me && me.name)
+    $('startForm').hidden = false
+    $('createAsk').hidden = true
+    $('loungeName').focus()
   }
   if (loungeMode === 'ready') {
     $('loungeTitle').textContent = startedLounge.title
@@ -188,18 +191,56 @@ function renderLounge () {
   }
 }
 
+// Type a lounge name. If someone is there you go straight in; if not, we ask
+// "Room does not exist. Create it?" (Yes keeps it, No goes back to the prompt.)
+let probing = null  // { id, title } while we wait to see if anyone is there
 $('startForm').onsubmit = async (e) => {
   e.preventDefault()
-  const you = $('startName').value.trim()
   const title = $('loungeName').value.trim()
-  if (!you || !title) return
+  let you = $('startName').value.trim()
+  if (me && me.name) you = me.name
+  if (!title) return
+  if (!you) { $('loungeError').textContent = 'Type your name too'; $('startName').focus(); return }
+  $('startGo').disabled = true
+  $('startGo').textContent = 'Looking…'
   try {
-    await s.setName(you)
+    if (!me || me.name !== you) await s.setName(you)
+    const had = (await s.state()).rooms.some((r) => r.lounge && r.title.toLowerCase() === title.toLowerCase())
     const id = await s.joinLounge(title)
-    startedLounge = { id, title, link: loungeLink(title) }
-    loungeMode = 'ready'
-    renderLounge()
+    let there = had
+    for (let i = 0; i < 16 && !there; i++) {
+      await new Promise((ok) => setTimeout(ok, 500))
+      const st = await s.state()
+      const r = st.rooms.find((x) => x.id === id)
+      there = !!r && (r.onlineKeys.length > 0 || (st.records[id] || []).some((x) => x.kind === 'msg' || x.kind === 'file'))
+    }
+    if (there) {
+      loungeMode = null
+      await refresh()
+      openRoom(id)
+    } else {
+      probing = { id, title }
+      $('createText').textContent = `Room "${title}" does not exist. Create it?`
+      $('startForm').hidden = true
+      $('createAsk').hidden = false
+    }
   } catch (err) { $('loungeError').textContent = err.message }
+  $('startGo').disabled = false
+  $('startGo').textContent = 'Go'
+}
+
+$('createYes').onclick = () => {
+  startedLounge = { id: probing.id, title: probing.title, link: loungeLink(probing.title) }
+  probing = null
+  loungeMode = 'ready'
+  renderLounge()
+}
+$('createNo').onclick = async () => {
+  try { await s.leaveRoom(probing.id) } catch {}
+  probing = null
+  $('loungeName').value = ''
+  loungeMode = 'start'
+  renderLounge()
 }
 
 $('loungeCopy').onclick = async () => {

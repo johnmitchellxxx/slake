@@ -26,14 +26,22 @@
       <h1 class="wordmark">slake</h1>
 
       <div id="loungeStart" hidden>
-        <p class="sub">Name a lounge, send the link, and talk. Anyone who types the same name is in. No accounts, no passwords.</p>
         <form id="startForm">
-          <label for="startName">Your name</label>
-          <input id="startName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
           <label for="loungeName">Lounge name</label>
           <input id="loungeName" maxlength="40" autocomplete="off" placeholder="For example: F1 PJ Hang" required>
-          <button type="submit">Go to the lounge</button>
+          <div id="startNameRow">
+            <label for="startName">Your name</label>
+            <input id="startName" maxlength="40" autocomplete="nickname" placeholder="What people call you">
+          </div>
+          <button type="submit" id="startGo">Go</button>
         </form>
+        <div id="createAsk" hidden>
+          <p class="sub" id="createText"></p>
+          <div class="share">
+            <button id="createYes" type="button">Yes, create it</button>
+            <button id="createNo" type="button" class="ghost">No</button>
+          </div>
+        </div>
         <button id="howBtn" class="ghost full" type="button">How it works</button>
       </div>
 
@@ -68,7 +76,7 @@
     <div class="dialog" role="dialog" aria-labelledby="howTitle">
       <div id="howTitle" class="dialog-title">How it works</div>
       <ol class="how-list">
-        <li>Name your lounge. Anyone who types the same name is in the same room.</li>
+        <li>Type a lounge name. If someone is already there, you are in. If not, you can create it.</li>
         <li>Send the link by text or email. Click the lounge name to copy it.</li>
         <li>They open the link, pick a name, and they're in.</li>
       </ol>
