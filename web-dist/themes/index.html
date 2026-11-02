@@ -24,7 +24,7 @@
 <script>
 // pantheon.live/slake (no slash) would break the relative links, so add one.
 if (!location.pathname.endsWith('/') && !location.pathname.endsWith('.html')) location.replace(location.pathname + '/' + location.search)
-const NAMES = ["default","after-hours","bubbles","harbor","indigo-mint","marshmallow","necklace","orchard","showfile","terminal","visionary"]
+const NAMES = ["default","after-hours","bubbles","harbor","indigo-mint","necklace","showfile","terminal","visionary"]
 const nice = (n) => n === 'default' ? 'Default' : n.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 const pills = document.getElementById('pills')
 const frame = document.getElementById('app')

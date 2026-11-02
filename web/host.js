@@ -28,6 +28,8 @@ const listThemes = () => {
   const recent = (readSettings().recentThemes || []).filter((t) => all.includes(t))
   return [...recent, ...all.filter((t) => !recent.includes(t))]
 }
+// Until you pick one yourself, After Hours is the look.
+const curTheme = (s) => (s.theme === undefined ? 'after-hours' : s.theme)
 const themeCSS = (t) => (t && t !== 'default' && THEMES[t]) || ''
 
 const DEFAULT_WALL = { id: 'none', blur: 0, dim: 0.35 }
@@ -92,7 +94,7 @@ function state () {
   const records = {}
   for (const room of slake.rooms.values()) records[room.id] = [...room.records.values()].sort((a, b) => a.ts - b.ts).map((r) => present(room, r))
   const s = readSettings()
-  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: THEMES[s.theme] ? s.theme : 'default', themeCSS: themeCSS(s.theme), version: { version: window.SLAKE_VERSION || '', updated: null }, sound: s.sound !== false, wallpapers: wallpapers() }
+  return { me: slake.me, rooms: rooms(), records, online: [...slake.onlineKeys()], themes: listThemes(), theme: THEMES[curTheme(s)] ? curTheme(s) : 'default', themeCSS: themeCSS(curTheme(s)), version: { version: window.SLAKE_VERSION || '', updated: null }, sound: s.sound !== false, wallpapers: wallpapers() }
 }
 
 let unread = 0

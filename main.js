@@ -152,7 +152,7 @@ const themesDir = () => path.join(app.getPath('userData'), 'themes')
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 
 function readSettings () {
-  try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) } catch { return { theme: 'default' } }
+  try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) } catch { return { theme: 'after-hours' } }
 }
 function writeSettings (s) { fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2)) }
 
@@ -204,7 +204,7 @@ function seedThemes () {
     } catch {}
   }
   const current = st.theme && st.theme !== 'default' && !fs.existsSync(path.join(themesDir(), st.theme + '.css')) ? 'default' : st.theme
-  writeSettings({ ...st, theme: current || 'default', shippedThemes: shipped })
+  writeSettings({ ...st, theme: current || 'after-hours', shippedThemes: shipped })
 }
 
 // Themes you've used most recently come first; the rest follow alphabetically.
