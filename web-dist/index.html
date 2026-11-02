@@ -152,9 +152,8 @@
 
     <main class="room">
       <div id="noRoom" class="no-room" hidden>
-        <h2>This is your space.</h2>
-        <p>Make a room with <b>+ new room</b> on the left. Right-click any room for its invite and members.<br>
-           Got an invite from someone? Paste it in the box at the bottom left.</p>
+        <h2>Type a room name.</h2>
+        <p>Use <b>+ join a room</b> on the left. Anyone who types the same name is in the same room.</p>
       </div>
 
       <div id="roomView" class="room-view" hidden>
@@ -179,14 +178,7 @@
           <div id="messages" class="messages" aria-live="polite"></div>
           <div id="results" class="messages results" hidden></div>
           <div id="dropZone" class="drop" hidden>Drop to send</div>
-          <aside id="membersPanel" class="members" hidden>
-            <div class="members-head">
-              <span>Members</span>
-              <button id="closeMembers" class="ghost" aria-label="Close">✕</button>
-            </div>
-            <ul id="memberList"></ul>
-            <p class="hint">Right-click someone to remove them. Everyone else gets a new room key; the removed person keeps what they already saw but can't follow anything new.</p>
-          </aside>
+          
         </div>
 
         <div id="pending" class="pending" hidden>
