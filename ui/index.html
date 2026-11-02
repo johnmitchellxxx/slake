@@ -197,8 +197,7 @@
   <div id="loadFail" style="display:none;position:fixed;inset:0;place-items:center;text-align:center;padding:24px;background:#16161d;color:#ddd;font:17px system-ui">
     <div>Slake didn't load properly.<br><br><button onclick="location.reload()" style="font:inherit;padding:10px 18px">Reload</button></div>
   </div>
-  <script>function slakeCheck () { setTimeout(function () { var ready = ['lounge','welcome','chat'].some(function (id) { var e = document.getElementById(id); return e && !e.hidden }); if (!ready) document.getElementById('loadFail').style.display = 'grid' }, 4000) }
-  window.addEventListener('error', slakeCheck); window.addEventListener('unhandledrejection', slakeCheck)</script>
+  <script src="loadguard.js"></script>
   <script src="wallpapers.js"></script>
   <script src="demo.js"></script>
   <script src="app.js"></script>
