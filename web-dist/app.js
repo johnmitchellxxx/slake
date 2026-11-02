@@ -703,6 +703,8 @@ function applyWallpaper () {
 s.onWallpapers((w) => { walls = w; applyWallpaper() })
 
 function renderAll () {
+  const cr = roomById(current)
+  $('leaveBtn').hidden = !(cr && !cr.dm)
   applyWallpaper()
   renderSidebar()
   renderHeader()
@@ -724,7 +726,7 @@ function fmtLeftUntil (ts) {
 }
 
 async function leave (r) {
-  const ok = await s.confirm({ action: 'Leave', message: `Leave #${r.title}?`, detail: 'It comes off your sidebar. To come back, type its name again.' })
+  const ok = await s.confirm({ action: 'Leave', message: `Are you sure you want to leave #${r.title}?`, detail: 'If everyone has left, this erases the space. To come back, type its name again.' })
   if (!ok) return
   await s.leaveRoom(r.id)
   if (current === r.id) current = null
@@ -1049,3 +1051,18 @@ async function refresh () {
 
 document.documentElement.dataset.platform = /Mac/.test(navigator.platform) ? 'mac' : /Win/.test(navigator.platform) ? 'win' : 'other'
 refresh()
+
+$('leaveBtn').onclick = () => { const r = roomById(current); if (r) leave(r).catch((e) => toast(e.message)) }
+
+// The start-screen tagline rotates through a few ways of saying the same thing.
+{
+  const lines = ['Ephemeral jam spaces', 'Transient shared spaces', 'Fleeting, impromptu hangouts']
+  let i = Math.floor(Math.random() * lines.length)
+  const tag = $('tagline')
+  tag.textContent = lines[i]
+  tag.style.transition = 'opacity .5s'
+  setInterval(() => {
+    tag.style.opacity = '0'
+    setTimeout(() => { i = (i + 1) % lines.length; tag.textContent = lines[i]; tag.style.opacity = '1' }, 500)
+  }, 3500)
+}

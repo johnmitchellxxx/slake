@@ -386,6 +386,6 @@ button.confirm { color: var(--danger) !important; }
   .space li { font-size: 21px; }
 }
 
-.tagline { text-align: center; color: var(--muted); font-size: 15px; line-height: 1.45; margin: 4px 0 18px; }
+.tagline { text-align: center; color: var(--muted); font-size: 17px; line-height: 1.45; margin: 4px 0 18px; min-height: 1.5em; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .two button { margin: 0; }

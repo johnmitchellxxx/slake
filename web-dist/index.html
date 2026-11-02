@@ -26,7 +26,7 @@
       <h1 class="wordmark">slake</h1>
 
       <div id="loungeStart" hidden>
-        <p class="tagline">Ephemeral jam spaces. Fleeting, impromptu hangouts with whoever you send the link to.</p>
+        <p class="tagline" id="tagline">Ephemeral jam spaces</p>
         <form id="startForm" autocomplete="off">
           <label for="loungeName">Space name</label>
           <input id="loungeName" maxlength="40" autocomplete="off" placeholder="For example: F1 PJ Hang">
@@ -136,6 +136,7 @@
       <button id="updateBanner" class="update" hidden></button>
 
       <footer class="foot">
+        <button id="leaveBtn" class="secondary full" type="button" hidden>Leave space</button>
         <div class="theme-row">
           <select id="themeSelect" aria-label="Theme"></select>
           <button id="themesBtn" class="ghost" title="Open the Theme Studio">Edit</button>
