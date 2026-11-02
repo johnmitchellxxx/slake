@@ -165,10 +165,10 @@ leaves their sidebar too, and nobody can post in it. Each Slake clears the
 room from disk a week later (that week lets the news reach people who were
 offline).
 
-**Lounges: the name is the code.** Type a lounge name (like `F1 PJ Hang`) in
-**+ join a lounge**, or on the web start page. Anyone who types the same name
+**Rooms by name: the name is the code.** Type a room name (like `F1 PJ Hang`) in
+**+ join a room**, or on the web start page. Anyone who types the same name
 (any capitalization, spaces or dashes) lands in the same room. Right-click a
-lounge → **Copy link** gives `slake.pantheon.live/#F1-PJ-Hang`. Nobody owns a
+room → **Copy link** gives `slake.pantheon.live/#F1-PJ-Hang`. Nobody owns a
 lounge, so nobody can remove people or delete it; you just leave. There's no
 secret, so anyone who guesses the name can join: fine for a few friends. For a
 private room, make one in **Your space** and send its invite.

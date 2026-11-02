@@ -18,7 +18,7 @@
 
       <div id="loungeStart" hidden>
         <form id="startForm">
-          <label for="loungeName">Lounge name</label>
+          <label for="loungeName">Room name</label>
           <input id="loungeName" maxlength="40" autocomplete="off" placeholder="For example: F1 PJ Hang" required>
           <div id="startNameRow">
             <label for="startName">Your name</label>
@@ -37,7 +37,7 @@
       </div>
 
       <div id="loungeReady" hidden>
-        <p class="sub">Your lounge is open. Send the link to anyone you want in it.</p>
+        <p class="sub">Your room is open. Send the link to anyone you want in it.</p>
         <button id="loungeCopy" class="lounge-name" type="button" title="Copy the link">
           <span id="loungeTitle"></span>
           <small>Click to copy the link</small>
@@ -46,7 +46,7 @@
           <a id="shareText" class="button-like" href="#">Text it</a>
           <a id="shareEmail" class="button-like" href="#">Email it</a>
         </div>
-        <button id="goLounge" type="button">Go to the lounge →</button>
+        <button id="goLounge" type="button">Go to the room →</button>
         <button id="howBtn2" class="ghost full" type="button">How it works</button>
       </div>
 
@@ -55,7 +55,7 @@
         <form id="joinNameForm">
           <label for="joinName">Your name</label>
           <input id="joinName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
-          <button type="submit">Join the lounge</button>
+          <button type="submit">Join the room</button>
         </form>
       </div>
 
@@ -67,11 +67,11 @@
     <div class="dialog" role="dialog" aria-labelledby="howTitle">
       <div id="howTitle" class="dialog-title">How it works</div>
       <ol class="how-list">
-        <li>Type a lounge name. If someone is already there, you are in. If not, you can create it.</li>
-        <li>Send the link by text or email. Click the lounge name to copy it.</li>
+        <li>Type a room name. If someone is already there, you are in. If not, you can create it.</li>
+        <li>Send the link by text or email. Click the room name to copy it.</li>
         <li>They open the link, pick a name, and they're in.</li>
       </ol>
-      <p class="dialog-note">Messages go straight between people's own devices, and nothing is kept on our server. A lounge lasts as long as people stay in it. When everyone leaves, it's gone.</p>
+      <p class="dialog-note">Messages go straight between people's own devices, and nothing is kept on our server. A room lasts as long as people stay in it. When everyone leaves, it's gone.</p>
       <div class="dialog-actions"><button id="howClose" class="ghost">Got it</button></div>
     </div>
   </div>
@@ -84,7 +84,7 @@
       <form id="nameForm">
         <label for="nameInput">Name</label>
         <input id="nameInput" maxlength="40" autocomplete="username" placeholder="What people call you" required>
-        <label for="welcomeLounge">Lounge name (optional)</label>
+        <label for="welcomeLounge">Room name (optional)</label>
         <input id="welcomeLounge" maxlength="40" autocomplete="off" placeholder="For example: F1 PJ Hang">
         <button type="submit">Continue</button>
       </form>

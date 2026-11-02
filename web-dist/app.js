@@ -171,9 +171,9 @@ function renderLounge () {
   }
   if (loungeMode === 'ready') {
     $('loungeTitle').textContent = startedLounge.title
-    const msg = `Join my lounge "${startedLounge.title}" on Slake: ${startedLounge.link}`
+    const msg = `Join my room "${startedLounge.title}" on Slake: ${startedLounge.link}`
     $('shareText').href = `sms:?&body=${encodeURIComponent(msg)}`
-    $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my lounge on Slake')}&body=${encodeURIComponent(msg)}`
+    $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my room on Slake')}&body=${encodeURIComponent(msg)}`
   }
   if (loungeMode === 'join') {
     const info = loungeFromLink ? { title: loungeFromLink, ownerName: null } : s.readInvite(inviteFromLink)
@@ -244,7 +244,7 @@ $('createNo').onclick = async () => {
 }
 
 $('loungeCopy').onclick = async () => {
-  if (await copyText(startedLounge.link)) toast('Link copied. Send it to anyone you want in the lounge.')
+  if (await copyText(startedLounge.link)) toast('Link copied. Send it to anyone you want in the room.')
   else toast('Could not copy. Select the link from the address bar.')
 }
 
@@ -318,13 +318,13 @@ function renderSidebar () {
 
   // Lounges first: type a name to join. The name is the code.
   const lounges = el('div', 'space')
-  lounges.append(el('div', 'space-name', 'Lounges'))
+  lounges.append(el('div', 'space-name', 'Rooms'))
   const lul = el('ul')
   rooms.filter((r) => r.lounge).sort(byTitle).forEach((r) => lul.append(roomItem(r)))
   lounges.append(lul)
   const lform = el('form', 'new-room')
   const linput = el('input')
-  linput.placeholder = '+ join a lounge'
+  linput.placeholder = '+ join a room'
   linput.maxLength = 40
   linput.autocomplete = 'off'
   lform.append(linput)
@@ -434,7 +434,7 @@ function renderHeader () {
   if (r.dm) {
     $('roomSub').textContent = online.has(r.peer) ? 'Direct message · online now' : 'Direct message · offline'
   } else {
-    const where = r.lounge ? 'Lounge' : r.mine ? 'In your space' : `In ${r.ownerName}'s space`
+    const where = r.lounge ? 'Room' : r.mine ? 'In your space' : `In ${r.ownerName}'s space`
     const names = (r.onlineKeys || []).map(nameOf)
     const who = r.closedAt ? 'deleted' : r.removed ? 'removed'
       : !names.length ? 'nobody else online'
@@ -546,7 +546,7 @@ function renderMessages () {
       box.append(el('p', 'empty', r.dm
         ? (online.has(r.peer) ? `Say hi to ${r.title}.` : `${r.title} gets this conversation the next time you're both online.`)
         : r.lounge
-        ? `Nothing here yet. Anyone who types "${r.title}" joins this lounge. Right-click it to copy the link.`
+        ? `Nothing here yet. Anyone who types "${r.title}" joins this room. Right-click it to copy the link.`
         : r.mine
         ? `Nothing in #${r.title} yet. Right-click the room to invite people.`
         : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
@@ -802,7 +802,7 @@ function roomMenu (r) {
   const bg = { id: 'background', label: 'Background…' }
   if (r.removed || r.closedAt) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
   if (r.dm) return [bg, { type: 'separator' }, { id: 'closeDM', label: 'Close conversation' }]
-  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave lounge…' }]
+  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave room…' }]
   if (r.mine) return [{ id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }, bg, { type: 'separator' }, { id: 'delete', label: 'Delete room…' }]
   return [bg, { type: 'separator' }, { id: 'leave', label: 'Leave room…' }]
 }
@@ -810,7 +810,7 @@ function roomMenu (r) {
 async function runRoomChoice (r, choice) {
   if (choice === 'invite') await copyInvite(r)
   if (choice === 'background') s.openStudio({ mode: 'room', room: r.id })
-  if (choice === 'link') { await copyText(loungeLink(r.title)); toast('Link copied. Anyone who opens it joins this lounge.') }
+  if (choice === 'link') { await copyText(loungeLink(r.title)); toast('Link copied. Anyone who opens it joins this room.') }
   if (choice === 'members') showMembers(r)
   if (choice === 'leave') await leave(r)
   if (choice === 'delete') {
