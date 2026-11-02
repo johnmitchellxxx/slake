@@ -39,4 +39,4 @@ top (colors, fonts), and add its name to `THEMES` at the top of `site/app.js`.
 ## The older, bigger Slake
 
 The version with desktop apps, accounts, files, DMs, rooms and the Theme Studio is
-saved under the git tag `full-app-0.9.1`.
+saved on the git branch `full-app`.
