@@ -56,7 +56,7 @@ function renderClash () {
   const firstOther = n && Math.min(...[...n].filter(([k]) => k !== me.publicKey).map(([, t]) => t))
   const show = !!(n && (mine === undefined || firstOther < mine))
   $('clashBanner').hidden = !show
-  if (show) $('clashText').textContent = `Someone else was already "${me.name}" in a room you're in. Pick a different name so people can tell you apart.`
+  if (show) $('clashText').textContent = `Someone else was already "${me.name}" in a space you're in. Pick a different name so people can tell you apart.`
 }
 
 async function rename (name) {
@@ -160,17 +160,16 @@ function renderLounge () {
   $('loungeError').textContent = ''
 
   if (loungeMode === 'start') {
-    if (!$('startName').value && me && me.name) $('startName').value = me.name
-    $('startNameRow').hidden = !!(me && me.name)
     $('startForm').hidden = false
     $('createAsk').hidden = true
+    $('whoAsk').hidden = true
     $('loungeName').focus()
   }
   if (loungeMode === 'ready') {
     $('loungeTitle').textContent = startedLounge.title
-    const msg = `Join my room "${startedLounge.title}" on Slake: ${startedLounge.link}`
+    const msg = `Join my space "${startedLounge.title}" on Slake: ${startedLounge.link}`
     $('shareText').href = `sms:?&body=${encodeURIComponent(msg)}`
-    $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my room on Slake')}&body=${encodeURIComponent(msg)}`
+    $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my space on Slake')}&body=${encodeURIComponent(msg)}`
   }
   if (loungeMode === 'join') {
     const info = { title: loungeFromLink }
@@ -188,42 +187,77 @@ function renderLounge () {
   }
 }
 
-// Type a lounge name. If someone is there you go straight in; if not, we ask
-// "Room does not exist. Create it?" (Yes keeps it, No goes back to the prompt.)
+// Make a space, or join one. The name is the code. Your own name is asked
+// only when you arrive and don't have one yet.
 let probing = null  // { id, title } while we wait to see if anyone is there
-$('startForm').onsubmit = async (e) => {
-  e.preventDefault()
-  const title = $('loungeName').value.trim()
-  let you = $('startName').value.trim()
-  if (me && me.name) you = me.name
-  if (!title) return
-  if (!you) { $('loungeError').textContent = 'Type your name too'; $('startName').focus(); return }
-  $('startGo').disabled = true
-  $('startGo').textContent = 'Looking…'
+let wanted = null   // { mode: 'make' | 'join', title } waiting for your name
+
+async function arrive (mode, title) {
+  $('loungeError').textContent = ''
+  if (!me || !me.name) {
+    wanted = { mode, title }
+    $('startForm').hidden = true
+    $('whoAsk').hidden = false
+    $('whoText').textContent = `Almost in: "${title}". What should we call you?`
+    $('whoName').focus()
+    return
+  }
+  const busy = mode === 'make' ? $('makeBtn') : $('joinBtn')
+  const label = busy.textContent
+  $('makeBtn').disabled = $('joinBtn').disabled = true
+  if (mode === 'join') busy.textContent = 'Looking…'
   try {
-    if (!me || me.name !== you) await s.setName(you)
-    const had = (await s.state()).rooms.some((r) => r.lounge && r.title.toLowerCase() === title.toLowerCase())
-    const id = await s.joinLounge(title)
-    let there = had
-    for (let i = 0; i < 16 && !there; i++) {
-      await new Promise((ok) => setTimeout(ok, 500))
-      const st = await s.state()
-      const r = st.rooms.find((x) => x.id === id)
-      there = !!r && (r.onlineKeys.length > 0 || (st.records[id] || []).some((x) => x.kind === 'msg' || x.kind === 'file'))
-    }
-    if (there) {
-      loungeMode = null
-      await refresh()
-      openRoom(id)
+    if (mode === 'make') {
+      const id = await s.joinLounge(title)
+      startedLounge = { id, title, link: loungeLink(title) }
+      loungeMode = 'ready'
+      renderLounge()
     } else {
-      probing = { id, title }
-      $('createText').textContent = `Room "${title}" does not exist. Create it?`
-      $('startForm').hidden = true
-      $('createAsk').hidden = false
+      const had = (await s.state()).rooms.some((r) => r.lounge && r.title.toLowerCase() === title.toLowerCase())
+      const id = await s.joinLounge(title)
+      let there = had
+      for (let i = 0; i < 16 && !there; i++) {
+        await new Promise((ok) => setTimeout(ok, 500))
+        const st = await s.state()
+        const r = st.rooms.find((x) => x.id === id)
+        there = !!r && (r.onlineKeys.length > 0 || (st.records[id] || []).some((x) => x.kind === 'msg' || x.kind === 'file'))
+      }
+      if (there) {
+        loungeMode = null
+        await refresh()
+        openRoom(id)
+      } else {
+        probing = { id, title }
+        $('createText').textContent = `Couldn't find a space called "${title}". Check the spelling (capital letters don't matter), or make it instead.`
+        $('startForm').hidden = true
+        $('createAsk').hidden = false
+      }
     }
   } catch (err) { $('loungeError').textContent = err.message }
-  $('startGo').disabled = false
-  $('startGo').textContent = 'Go'
+  $('makeBtn').disabled = $('joinBtn').disabled = false
+  busy.textContent = label
+}
+
+$('startForm').onsubmit = (e) => {
+  e.preventDefault()
+  const title = $('loungeName').value.trim()
+  if (!title) { $('loungeError').textContent = 'Type a space name first'; $('loungeName').focus(); return }
+  arrive(e.submitter && e.submitter.id === 'joinBtn' ? 'join' : 'make', title)
+}
+
+$('whoForm').onsubmit = async (e) => {
+  e.preventDefault()
+  const you = $('whoName').value.trim()
+  if (!you || !wanted) return
+  try {
+    await s.setName(you)
+    me = (await s.state()).me
+    const w = wanted
+    wanted = null
+    $('whoAsk').hidden = true
+    $('startForm').hidden = false
+    await arrive(w.mode, w.title)
+  } catch (err) { $('loungeError').textContent = err.message }
 }
 
 $('createYes').onclick = () => {
@@ -235,13 +269,12 @@ $('createYes').onclick = () => {
 $('createNo').onclick = async () => {
   try { await s.leaveRoom(probing.id) } catch {}
   probing = null
-  $('loungeName').value = ''
   loungeMode = 'start'
-  renderLounge()
+  renderLounge()   // keeps what you typed so you can fix it
 }
 
 $('loungeCopy').onclick = async () => {
-  if (await copyText(startedLounge.link)) toast('Link copied. Send it to anyone you want in the room.')
+  if (await copyText(startedLounge.link)) toast('Link copied. Send it to anyone you want in the space.')
   else toast('Could not copy. Select the link from the address bar.')
 }
 
@@ -313,13 +346,13 @@ function renderSidebar () {
 
   // Lounges first: type a name to join. The name is the code.
   const lounges = el('div', 'space')
-  lounges.append(el('div', 'space-name', 'Rooms'))
+  lounges.append(el('div', 'space-name', 'Spaces'))
   const lul = el('ul')
   rooms.filter((r) => r.lounge).sort(byTitle).forEach((r) => lul.append(roomItem(r)))
   lounges.append(lul)
   const lform = el('form', 'new-room')
   const linput = el('input')
-  linput.placeholder = '+ join a room'
+  linput.placeholder = '+ join a space'
   linput.maxLength = 40
   linput.autocomplete = 'off'
   lform.append(linput)
@@ -385,7 +418,7 @@ function renderHeader () {
   if (r.dm) {
     $('roomSub').textContent = online.has(r.peer) ? 'Direct message · online now' : 'Direct message · offline'
   } else {
-    const where = 'Room'
+    const where = 'Space'
     const names = (r.onlineKeys || []).map(nameOf)
     const who = r.closedAt ? 'deleted' : r.removed ? 'removed'
       : !names.length ? 'nobody else online'
@@ -482,7 +515,7 @@ function renderMessages () {
       box.append(el('p', 'empty', r.dm
         ? (online.has(r.peer) ? `Say hi to ${r.title}.` : `${r.title} gets this conversation the next time you're both online.`)
         : r.lounge
-        ? `Nothing here yet. Anyone who types "${r.title}" joins this room. Right-click it to copy the link.`
+        ? `Nothing here yet. Anyone who types "${r.title}" joins this space. Right-click it to copy the link.`
         : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
     }
   }
@@ -718,13 +751,13 @@ function roomMenu (r) {
   const bg = { id: 'background', label: 'Background…' }
   if (r.removed || r.closedAt) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
   if (r.dm) return [bg, { type: 'separator' }, { id: 'closeDM', label: 'Close conversation' }]
-  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave room…' }]
-  return [bg, { type: 'separator' }, { id: 'leave', label: 'Leave room…' }]
+  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave space…' }]
+  return [bg, { type: 'separator' }, { id: 'leave', label: 'Leave space…' }]
 }
 
 async function runRoomChoice (r, choice) {
   if (choice === 'background') s.openStudio({ mode: 'room', room: r.id })
-  if (choice === 'link') { await copyText(loungeLink(r.title)); toast('Link copied. Anyone who opens it joins this room.') }
+  if (choice === 'link') { await copyText(loungeLink(r.title)); toast('Link copied. Anyone who opens it joins this space.') }
   if (choice === 'leave') await leave(r)
   if (choice === 'closeDM') {
     const ok = await s.confirm({ action: 'Close', message: `Close your conversation with ${r.title}?`, detail: 'It comes off your sidebar here. To talk again, right-click them and choose Message.' })

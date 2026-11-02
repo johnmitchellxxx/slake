@@ -385,3 +385,7 @@ button.confirm { color: var(--danger) !important; }
   .result-where { font-size: 15px; }
   .space li { font-size: 21px; }
 }
+
+.tagline { text-align: center; color: var(--muted); font-size: 15px; line-height: 1.45; margin: 4px 0 18px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.two button { margin: 0; }
