@@ -6,5 +6,5 @@ self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) =
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url)
   if (e.request.method !== 'GET' || u.origin !== location.origin) return
-  e.respondWith(fetch(e.request).then((r) => { const c = r.clone(); caches.open(CACHE).then((cache) => cache.put(e.request, c)); return r }).catch(() => caches.match(e.request)))
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then((r) => { const c = r.clone(); caches.open(CACHE).then((cache) => cache.put(e.request, c)); return r }).catch(() => caches.match(e.request)))
 })
