@@ -309,7 +309,7 @@ class Slake extends EventEmitter {
     if (this.swarm) await this.swarm.destroy()
   }
 
-  get me () { return { publicKey: this.identity.publicKey, name: this.identity.name, avatar: this.identity.avatar || null, hasPassword: !!(this.locker && !this._login), loginName: this.locker && !this._login ? this.locker.loginName : null } }
+  get me () { return { publicKey: this.identity.publicKey, name: this.identity.name, avatar: this.identity.avatar || null, hasPassword: !!(this.locker && !this._login), loginName: this.locker && !this._login ? this.locker.loginName : null, myDevicesOnline: [...this.peers].filter((p) => p.mine).length } }
 
   // Change your picture everywhere: a signed note in every room you're in.
   setAvatar (avatar) {

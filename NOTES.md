@@ -47,6 +47,10 @@ language, keep the window clean and minimal, keep it hackable.
   it starts as a new person; when it later meets your real device and hasn't
   been used yet, it turns into you automatically.
 - Existing users set a password from the panel under their name.
+- Decided: no recovery. An account lives only as long as one of its devices
+  stays logged in; log out everywhere and it's gone. Said plainly on the
+  sign-up screen ("Why?") and in the Log out warning, which checks whether
+  another of your devices is connected right now. Desktop = the keeper.
 - No Google sign-in: that needs a server in the middle.
 
 ## Theme hooks

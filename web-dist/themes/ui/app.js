@@ -857,9 +857,13 @@ function showPassword () {
   }
 }
 $('logoutBtn').onclick = async () => {
-  const ok = me.hasPassword
-    ? await s.confirm({ action: 'Log out', message: 'Log out of Slake on this computer?', detail: `Your rooms stay on your other devices. To come back, log in as ${me.loginName || me.name} with your password while one of them is on.` })
-    : await s.confirm({ action: 'Log out anyway', message: "You haven't set a password.", detail: "Without one you can't log back in as yourself, and the rooms on this computer are gone for good. Set a password first (just above) unless you're sure." })
+  const st = await s.state()
+  const others = (st.me && st.me.myDevicesOnline) || 0
+  const ok = !me.hasPassword
+    ? await s.confirm({ action: 'Log out anyway', message: "You haven't set a password.", detail: "Without one you can't log back in as yourself, and your account is gone for good. Set a password first (just above) unless you're sure." })
+    : others > 0
+      ? await s.confirm({ action: 'Log out', message: 'Log out of Slake here?', detail: `Another of your devices is connected right now, so your account is safe there. To come back, log in as ${me.loginName || me.name} with your password while it's on.` })
+      : await s.confirm({ action: 'Log out', message: 'Is this the last place you\'re logged in?', detail: `None of your other devices is connected right now. If no other computer is still logged in as ${me.loginName || me.name}, logging out deletes your account for good. Slake has no server, so nobody can bring it back.` })
   if (ok) await s.logout()
 }
 $('pwForm').onsubmit = async (e) => {
