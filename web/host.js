@@ -5,7 +5,7 @@ const { Buffer } = require('buffer')
 globalThis.Buffer = globalThis.Buffer || Buffer
 const fs = require('fs')
 const { argon2id } = require('hash-wasm')
-const { Slake } = require('../core')
+const { Slake, parseInvite } = require('../core')
 const { WebSwarm } = require('./transport')
 
 const DATA = '/slake'
@@ -268,6 +268,8 @@ window.slake = {
   joinRoom: api((inv) => slake.joinRoom(inv, { waitForNetwork: false })),
   post: api((room, text) => { slake.post(room, text) }),
   copyInvite: api((room) => copy(slake.invite(room))),
+  inviteText: api((room) => slake.invite(room)),
+  readInvite: (str) => parseInvite(str),
   inviteCode: api((room) => slake.inviteCode(room)),
   messagePerson: api((key, name) => slake.messagePerson(key, name)),
   joinWithCode: api((code) => slake.joinWithCode(code)),

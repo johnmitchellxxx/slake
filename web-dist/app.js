@@ -123,6 +123,115 @@ function toast (text) {
 function applyTheme (css) { $('theme').textContent = css || '' }
 const roomById = (id) => rooms.find((r) => r.id === id)
 
+// ---------- Lounges (web) ----------
+// On the web, a new visitor starts a lounge (or follows someone's link into
+// one). No accounts, no passwords: a name, and a lounge the link carries.
+const LOUNGE_ADJ = ['Quiet', 'Lazy', 'Sunny', 'Cosmic', 'Velvet', 'Mellow', 'Rustic', 'Neon', 'Wild', 'Gentle', 'Amber', 'Foggy', 'Mossy', 'Lucky', 'Pocket']
+const LOUNGE_NOUN = ['Otter', 'Lantern', 'Harbor', 'Meadow', 'Comet', 'Kettle', 'Orchard', 'Lagoon', 'Parade', 'Garden', 'Cabin', 'Ember', 'Bungalow', 'Tide', 'Canoe']
+const pick = (a) => a[Math.floor(Math.random() * a.length)]
+const randomLounge = () => `${pick(LOUNGE_ADJ)} ${pick(LOUNGE_NOUN)}`
+
+// A link looks like https://slake.pantheon.live/#slake:...  The invite is the hash.
+let inviteFromLink = null
+let loungeMode = null      // null (normal chat) | 'start' | 'ready' | 'join'
+let startedLounge = null   // { id, title, link } once you've started one
+if (s.web && /^#slake:/.test(location.hash)) {
+  inviteFromLink = location.hash.slice(1)
+  history.replaceState(null, '', location.pathname + location.search)
+  loungeMode = 'join'
+}
+
+async function copyText (text) {
+  try { await navigator.clipboard.writeText(text); return true } catch {}
+  const t = el('textarea')
+  t.value = text
+  t.style.position = 'fixed'
+  t.style.opacity = '0'
+  document.body.append(t)
+  t.select()
+  const ok = document.execCommand('copy')
+  t.remove()
+  return ok
+}
+
+function renderLounge () {
+  $('welcome').hidden = true
+  $('chat').hidden = true
+  $('lounge').hidden = false
+  for (const [mode, id] of [['start', 'loungeStart'], ['ready', 'loungeReady'], ['join', 'loungeJoin']]) $(id).hidden = loungeMode !== mode
+  $('loungeError').textContent = ''
+
+  if (loungeMode === 'start') {
+    if (!$('loungeName').value) $('loungeName').value = randomLounge()
+    if (!$('startName').value && me && me.name) $('startName').value = me.name
+    $('startName').focus()
+  }
+  if (loungeMode === 'ready') {
+    $('loungeTitle').textContent = startedLounge.title
+    const msg = `Join my lounge "${startedLounge.title}" on Slake: ${startedLounge.link}`
+    $('shareText').href = `sms:?&body=${encodeURIComponent(msg)}`
+    $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my lounge on Slake')}&body=${encodeURIComponent(msg)}`
+  }
+  if (loungeMode === 'join') {
+    const info = s.readInvite(inviteFromLink)
+    if (!info) {
+      $('joinSub').textContent = "That link doesn't look right. Ask for it again."
+      $('joinNameForm').hidden = true
+    } else {
+      $('joinNameForm').hidden = false
+      $('joinSub').textContent = `${info.ownerName} invited you to "${info.title}".`
+      if (!$('joinName').value) $('joinName').value = (me && me.name) || ''
+      $('joinName').focus()
+    }
+  }
+}
+
+$('startForm').onsubmit = async (e) => {
+  e.preventDefault()
+  const you = $('startName').value.trim()
+  const title = $('loungeName').value.trim() || randomLounge()
+  if (!you) return
+  try {
+    await s.setName(you)
+    const id = await s.createRoom(title)
+    const invite = await s.inviteText(id)
+    startedLounge = { id, title, link: `${location.origin}${location.pathname}#${invite}` }
+    loungeMode = 'ready'
+    renderLounge()
+  } catch (err) { $('loungeError').textContent = err.message }
+}
+
+$('loungeCopy').onclick = async () => {
+  if (await copyText(startedLounge.link)) toast('Link copied. Send it to anyone you want in the lounge.')
+  else toast('Could not copy. Select the link from the address bar.')
+}
+
+$('goLounge').onclick = async () => {
+  const id = startedLounge.id
+  startedLounge = null
+  loungeMode = null
+  await refresh()
+  openRoom(id)
+}
+
+$('joinNameForm').onsubmit = async (e) => {
+  e.preventDefault()
+  const you = $('joinName').value.trim()
+  if (!you) return
+  try {
+    if (!me || me.name !== you) await s.setName(you)
+    const id = await s.joinRoom(inviteFromLink)
+    inviteFromLink = null
+    loungeMode = null
+    await refresh()
+    openRoom(id)
+    toast('Joined. History arrives as soon as someone in the room is online.')
+  } catch (err) { $('loungeError').textContent = err.message }
+}
+
+$('howBtn').onclick = $('howBtn2').onclick = () => { $('howDialog').hidden = false }
+$('howClose').onclick = () => { $('howDialog').hidden = true }
+
 // ---------- Welcome ----------
 // One form: if this name and password belong to someone on another device,
 // you become them; if nothing answers in a few seconds, you're new.
@@ -996,6 +1105,10 @@ async function refresh () {
   showVersion(st.version)
   applyTheme(st.themeCSS)
   renderThemes(st.themes, st.theme)
+  if (s.web && !loungeMode) {
+    if (!me.name) loungeMode = 'start'
+  }
+  if (s.web && loungeMode) { renderLounge(); return }
   if (!me.name) {
     $('welcome').hidden = false
     $('chat').hidden = true

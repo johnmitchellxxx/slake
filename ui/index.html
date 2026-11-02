@@ -11,6 +11,63 @@
   <!-- Your wallpaper (only you see it), and a tint over it so text stays readable -->
   <div id="wallLayer" class="wall" hidden></div>
   <div id="wallDim" class="wall-dim" hidden></div>
+  <!-- Web only: start a lounge, send the link, or follow someone's link in -->
+  <section id="lounge" class="screen" hidden>
+    <div class="card lounge">
+      <h1 class="wordmark">slake</h1>
+
+      <div id="loungeStart" hidden>
+        <p class="sub">Start a lounge, send the link, and talk. No accounts, no passwords.</p>
+        <form id="startForm">
+          <label for="startName">Your name</label>
+          <input id="startName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
+          <label for="loungeName">Lounge name</label>
+          <input id="loungeName" maxlength="40" autocomplete="off" placeholder="Name your lounge" required>
+          <button type="submit">Start the lounge</button>
+        </form>
+        <button id="howBtn" class="ghost full" type="button">How it works</button>
+      </div>
+
+      <div id="loungeReady" hidden>
+        <p class="sub">Your lounge is open. Send the link to anyone you want in it.</p>
+        <button id="loungeCopy" class="lounge-name" type="button" title="Copy the link">
+          <span id="loungeTitle"></span>
+          <small>Click to copy the link</small>
+        </button>
+        <div class="share">
+          <a id="shareText" class="button-like" href="#">Text it</a>
+          <a id="shareEmail" class="button-like" href="#">Email it</a>
+        </div>
+        <button id="goLounge" type="button">Go to the lounge →</button>
+        <button id="howBtn2" class="ghost full" type="button">How it works</button>
+      </div>
+
+      <div id="loungeJoin" hidden>
+        <p class="sub" id="joinSub"></p>
+        <form id="joinNameForm">
+          <label for="joinName">Your name</label>
+          <input id="joinName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
+          <button type="submit">Join the lounge</button>
+        </form>
+      </div>
+
+      <p id="loungeError" class="error" role="alert"></p>
+    </div>
+  </section>
+
+  <div id="howDialog" class="scrim" hidden>
+    <div class="dialog" role="dialog" aria-labelledby="howTitle">
+      <div id="howTitle" class="dialog-title">How it works</div>
+      <ol class="how-list">
+        <li>Name your lounge and tell people what you're called.</li>
+        <li>Send the link by text or email. Click the lounge name to copy it.</li>
+        <li>They open the link, pick a name, and they're in.</li>
+      </ol>
+      <p class="dialog-note">Messages go straight between people's own devices, and nothing is kept on our server. A lounge lasts as long as people stay in it. When everyone leaves, it's gone.</p>
+      <div class="dialog-actions"><button id="howClose" class="ghost">Got it</button></div>
+    </div>
+  </div>
+
   <!-- First launch: pick a name -->
   <section id="welcome" class="screen" hidden>
     <div class="card">
