@@ -26,13 +26,13 @@
       <h1 class="wordmark">slake</h1>
 
       <div id="loungeStart" hidden>
-        <p class="sub">Start a lounge, send the link, and talk. No accounts, no passwords.</p>
+        <p class="sub">Name a lounge, send the link, and talk. Anyone who types the same name is in. No accounts, no passwords.</p>
         <form id="startForm">
           <label for="startName">Your name</label>
           <input id="startName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
           <label for="loungeName">Lounge name</label>
-          <input id="loungeName" maxlength="40" autocomplete="off" placeholder="Name your lounge" required>
-          <button type="submit">Start the lounge</button>
+          <input id="loungeName" maxlength="40" autocomplete="off" placeholder="For example: F1 PJ Hang" required>
+          <button type="submit">Go to the lounge</button>
         </form>
         <button id="howBtn" class="ghost full" type="button">How it works</button>
       </div>
@@ -68,7 +68,7 @@
     <div class="dialog" role="dialog" aria-labelledby="howTitle">
       <div id="howTitle" class="dialog-title">How it works</div>
       <ol class="how-list">
-        <li>Name your lounge and tell people what you're called.</li>
+        <li>Name your lounge. Anyone who types the same name is in the same room.</li>
         <li>Send the link by text or email. Click the lounge name to copy it.</li>
         <li>They open the link, pick a name, and they're in.</li>
       </ol>
@@ -85,6 +85,8 @@
       <form id="nameForm">
         <label for="nameInput">Name</label>
         <input id="nameInput" maxlength="40" autocomplete="username" placeholder="What people call you" required>
+        <label for="welcomeLounge">Lounge name (optional)</label>
+        <input id="welcomeLounge" maxlength="40" autocomplete="off" placeholder="For example: F1 PJ Hang">
         <button type="submit">Continue</button>
       </form>
       <p id="welcomeError" class="error" role="alert"></p>
@@ -132,9 +134,6 @@
       <button id="updateBanner" class="update" hidden></button>
 
       <footer class="foot">
-        <form id="joinForm" class="join">
-          <input id="joinInput" autocomplete="off" placeholder="Join with a code or invite">
-        </form>
         <div class="theme-row">
           <select id="themeSelect" aria-label="Theme"></select>
           <button id="themesBtn" class="ghost" title="Open the Theme Studio">Edit</button>
@@ -202,18 +201,6 @@
       </div>
     </main>
   </section>
-
-  <div id="codeDialog" class="scrim" hidden>
-    <div class="dialog" role="dialog" aria-labelledby="codeTitle">
-      <div id="codeTitle" class="dialog-title"></div>
-      <div id="codeValue" class="code"></div>
-      <p id="codeNote" class="dialog-note"></p>
-      <div class="dialog-actions">
-        <button id="codeCopy">Copy code</button>
-        <button id="codeClose" class="ghost">Done</button>
-      </div>
-    </div>
-  </div>
 
   <div id="toast" class="toast" hidden></div>
   <script src="version.js"></script>

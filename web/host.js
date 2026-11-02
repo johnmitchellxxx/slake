@@ -4,7 +4,6 @@
 const { Buffer } = require('buffer')
 globalThis.Buffer = globalThis.Buffer || Buffer
 const fs = require('fs')
-const { argon2id } = require('hash-wasm')
 const { Slake, parseInvite } = require('../core')
 const { WebSwarm } = require('./transport')
 
@@ -38,7 +37,6 @@ const wallpapers = () => { const s = readSettings(); return { default: s.wallpap
 let slake = null
 const params = new URLSearchParams(location.search)
 const relayUrls = params.get('relays') ? params.get('relays').split(',') : undefined
-const kdf = async (password, salt) => Buffer.from(await argon2id({ password: new Uint8Array(password), salt: new Uint8Array(salt), parallelism: 1, iterations: 3, memorySize: 65536, hashLength: 32, outputType: 'binary' }))
 
 const ready = (async () => {
   let bundled = {}
@@ -46,7 +44,7 @@ const ready = (async () => {
   BUNDLED = Object.keys(bundled)
   THEMES = { ...bundled, ...myThemes() }
   await fs.load()
-  slake = new Slake({ dataDir: DATA, makeSwarm: () => new WebSwarm({ relayUrls }), kdf })
+  slake = new Slake({ dataDir: DATA, makeSwarm: () => new WebSwarm({ relayUrls }) })
   await slake.start()
   if (params.has('debug')) window.__slakeEngine = slake
   wire()
@@ -80,7 +78,7 @@ function roomInfo (room) {
   const mine = room.owner === slake.me.publicKey
   const dmName = room.dm ? (nameIn(room, room.peer) || (mine ? room.title : room.ownerName)) : null
   return {
-    id: room.id, title: room.dm ? dmName : room.title, dm: !!room.dm, peer: room.peer || null,
+    id: room.id, title: room.dm ? dmName : room.title, dm: !!room.dm, lounge: !!room.lounge, peer: room.peer || null,
     onlineKeys: slake.onlineIn(room.id), owner: room.owner, ownerName: room.ownerName, mine,
     removed: room.removed, closedAt: room.closedAt || null, online: slake.online(room.id),
     members: mine && !room.dm ? slake.members(room.id) : null
@@ -105,7 +103,6 @@ function wire () {
   slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]) })
   slake.on('dm', () => send('rooms', rooms()))
   slake.on('closed', (roomId, title, by) => { if (by !== slake.me.name) send('closed', { title, by }) })
-  slake.on('knocked', (roomId, name) => { const room = slake.rooms.get(roomId); send('knocked', { room: roomId, name, title: room ? room.title : '' }) })
   slake.on('file', (roomId, fid) => {
     const room = slake.rooms.get(roomId)
     const rec = room && slake._fileRec(room, fid)
@@ -267,9 +264,8 @@ window.slake = {
   copyInvite: api((room) => copy(slake.invite(room))),
   inviteText: api((room) => slake.invite(room)),
   readInvite: (str) => parseInvite(str),
-  inviteCode: api((room) => slake.inviteCode(room)),
   messagePerson: api((key, name) => slake.messagePerson(key, name)),
-  joinWithCode: api((code) => slake.joinWithCode(code)),
+  joinLounge: api((name) => slake.joinLounge(name, { waitForNetwork: false })),
   removeMember: api((room, key) => slake.removeMember(room, key)),
   leaveRoom: api((room) => slake.leaveRoom(room)),
   deleteRoom: api((room) => slake.deleteRoom(room)),
@@ -318,7 +314,6 @@ window.slake = {
   onRecord: on('record'),
   onRooms: on('rooms'),
   onOnline: on('online'),
-  onKnocked: on('knocked'),
   onClosed: on('closed'),
   onFileStatus: on('fileStatus'),
   onTheme: on('theme'),

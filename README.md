@@ -165,9 +165,13 @@ leaves their sidebar too, and nobody can post in it. Each Slake clears the
 room from disk a week later (that week lets the news reach people who were
 offline).
 
-**Invite with a code.** Right-click a room you own and choose **Invite with a
-code…** for a 5-character code like `K7Q2M`. Anyone who types it in the join
-box gets in, for 15 minutes, while your Slake is running.
+**Lounges: the name is the code.** Type a lounge name (like `F1 PJ Hang`) in
+**+ join a lounge**, or on the web start page. Anyone who types the same name
+(any capitalization, spaces or dashes) lands in the same room. Right-click a
+lounge → **Copy link** gives `slake.pantheon.live/#F1-PJ-Hang`. Nobody owns a
+lounge, so nobody can remove people or delete it; you just leave. There's no
+secret, so anyone who guesses the name can join: fine for a few friends. For a
+private room, make one in **Your space** and send its invite.
 
 **Names.** If someone else was already using your name in a room you share,
 Slake asks you to pick another. When two people do share a name, a ⚠️ and an

@@ -28,9 +28,11 @@ language, keep the window clean and minimal, keep it hackable.
 - **Files are fleeting**: 1 hour / 1 day / 1 week, then every copy is deleted;
   the record stays as a stub. Bytes go peer-to-peer, checked by SHA-256. No
   size limit. Files ≤ 50 MB fetch themselves.
-- **Short codes**: 5 chars, 15 minutes, owner must be online. Joiner proves
-  the code; owner seals the full invite to them. Slow-hashed meeting point.
-  Fine for a small group; strengthen as it grows.
+- **Lounges**: a room whose key, id and (pseudo) owner are derived from the
+  normalized name (lowercase, spaces/dashes/underscores equal). No secret, no
+  owner: anyone who types the name is in. Owner-run private rooms stay for
+  anything that needs invites and removals. (Short 5-letter codes were removed
+  in favor of this.)
 - Presence: peers sign their identity into each connection's hello, so
   `onlineIn(room)` knows exactly who's on.
 - Names: the emoji pair (from the key) is hidden unless two people share a
@@ -45,8 +47,7 @@ language, keep the window clean and minimal, keep it hackable.
 - Decided (Nov 2026): the old name + password login, device sync and "keeper"
   machinery were removed. "Erase Slake on this device" in the picture panel
   wipes the local data and starts over.
-- Short invite codes (5 letters) stay; they use a slow hash so they're hard
-  to guess, and are not passwords.
+- The 5-letter invite codes were removed too: the lounge name is the code.
 
 ## Theme hooks
 

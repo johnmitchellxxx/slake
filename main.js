@@ -299,6 +299,7 @@ function roomInfo (room) {
     id: room.id,
     title: room.dm ? dmName : room.title,
     dm: !!room.dm,
+    lounge: !!room.lounge,
     peer: room.peer || null,
     onlineKeys: slake.onlineIn(room.id),
     owner: room.owner,
@@ -381,10 +382,6 @@ app.whenReady().then(async () => {
   })
   // Re-check every 10 minutes so deleted rooms leave guests' sidebars on time.
   setInterval(() => send('rooms', rooms()), 10 * 60 * 1000)
-  slake.on('knocked', (roomId, name) => {
-    const room = slake.rooms.get(roomId)
-    send('knocked', { room: roomId, name, title: room ? room.title : '' })
-  })
   slake.on('file', (roomId, fid) => {
     const room = slake.rooms.get(roomId)
     const rec = room && slake._fileRec(room, fid)
@@ -447,9 +444,8 @@ app.whenReady().then(async () => {
   handle('joinRoom', (inv) => slake.joinRoom(inv, { waitForNetwork: false }))
   handle('post', ({ room, text }) => { slake.post(room, text) })
   handle('copyInvite', (room) => clipboard.writeText(slake.invite(room)))
-  handle('inviteCode', (room) => slake.inviteCode(room))
   handle('messagePerson', ({ key, name }) => slake.messagePerson(key, name))
-  handle('joinWithCode', (code) => slake.joinWithCode(code))
+  handle('joinLounge', (name) => slake.joinLounge(name, { waitForNetwork: false }))
   handle('removeMember', ({ room, key }) => slake.removeMember(room, key))
   handle('leaveRoom', (room) => slake.leaveRoom(room))
   handle('deleteRoom', (room) => slake.deleteRoom(room))

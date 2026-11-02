@@ -22,7 +22,6 @@
     "electron-builder": "^26.18.0",
     "esbuild": "^0.24.2",
     "events": "^3.3.0",
-    "hash-wasm": "4.12",
     "hyperdht": "^6.35.0",
     "path-browserify": "^1.0.1",
     "sodium-javascript": "^0.8.0",

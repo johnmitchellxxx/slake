@@ -123,22 +123,23 @@ function toast (text) {
 function applyTheme (css) { $('theme').textContent = css || '' }
 const roomById = (id) => rooms.find((r) => r.id === id)
 
-// ---------- Lounges (web) ----------
-// On the web, a new visitor starts a lounge (or follows someone's link into
-// one). No accounts, no passwords: a name, and a lounge the link carries.
-const LOUNGE_ADJ = ['Quiet', 'Lazy', 'Sunny', 'Cosmic', 'Velvet', 'Mellow', 'Rustic', 'Neon', 'Wild', 'Gentle', 'Amber', 'Foggy', 'Mossy', 'Lucky', 'Pocket']
-const LOUNGE_NOUN = ['Otter', 'Lantern', 'Harbor', 'Meadow', 'Comet', 'Kettle', 'Orchard', 'Lagoon', 'Parade', 'Garden', 'Cabin', 'Ember', 'Bungalow', 'Tide', 'Canoe']
-const pick = (a) => a[Math.floor(Math.random() * a.length)]
-const randomLounge = () => `${pick(LOUNGE_ADJ)} ${pick(LOUNGE_NOUN)}`
+// ---------- Lounges ----------
+// A lounge's name is its code: type the same name and you land in the same
+// room. A link is the site address with the name after a # (spaces become -).
+const SITE = s.web ? location.origin + location.pathname : 'https://slake.pantheon.live/'
+const loungeLink = (title) => `${SITE}#${encodeURIComponent(title.trim().replace(/\s+/g, '-'))}`
 
-// A link looks like https://slake.pantheon.live/#slake:...  The invite is the hash.
-let inviteFromLink = null
+let inviteFromLink = null  // a private-room invite (slake:...) from the link
+let loungeFromLink = null  // a lounge name from the link
 let loungeMode = null      // null (normal chat) | 'start' | 'ready' | 'join'
 let startedLounge = null   // { id, title, link } once you've started one
-if (s.web && /^#slake:/.test(location.hash)) {
-  inviteFromLink = location.hash.slice(1)
+if (s.web && location.hash.length > 1) {
+  let h = ''
+  try { h = decodeURIComponent(location.hash.slice(1)) } catch {}
+  if (/^slake:/.test(h)) inviteFromLink = h
+  else if (h.trim()) loungeFromLink = h.replace(/-/g, ' ').trim().slice(0, 40)
   history.replaceState(null, '', location.pathname + location.search)
-  loungeMode = 'join'
+  if (inviteFromLink || loungeFromLink) loungeMode = 'join'
 }
 
 async function copyText (text) {
@@ -162,7 +163,6 @@ function renderLounge () {
   $('loungeError').textContent = ''
 
   if (loungeMode === 'start') {
-    if (!$('loungeName').value) $('loungeName').value = randomLounge()
     if (!$('startName').value && me && me.name) $('startName').value = me.name
     $('startName').focus()
   }
@@ -173,15 +173,17 @@ function renderLounge () {
     $('shareEmail').href = `mailto:?subject=${encodeURIComponent('Join my lounge on Slake')}&body=${encodeURIComponent(msg)}`
   }
   if (loungeMode === 'join') {
-    const info = s.readInvite(inviteFromLink)
+    const info = loungeFromLink ? { title: loungeFromLink, ownerName: null } : s.readInvite(inviteFromLink)
     if (!info) {
       $('joinSub').textContent = "That link doesn't look right. Ask for it again."
       $('joinNameForm').hidden = true
     } else {
       $('joinNameForm').hidden = false
-      $('joinSub').textContent = `${info.ownerName} invited you to "${info.title}".`
+      $('joinSub').textContent = info.ownerName ? `${info.ownerName} invited you to "${info.title}".` : `You're joining "${info.title}".`
       if (!$('joinName').value) $('joinName').value = (me && me.name) || ''
       $('joinName').focus()
+      // Already know your name? Straight in.
+      if (me && me.name && !renderLounge.went) { renderLounge.went = true; joinFromLink(me.name) }
     }
   }
 }
@@ -189,13 +191,12 @@ function renderLounge () {
 $('startForm').onsubmit = async (e) => {
   e.preventDefault()
   const you = $('startName').value.trim()
-  const title = $('loungeName').value.trim() || randomLounge()
-  if (!you) return
+  const title = $('loungeName').value.trim()
+  if (!you || !title) return
   try {
     await s.setName(you)
-    const id = await s.createRoom(title)
-    const invite = await s.inviteText(id)
-    startedLounge = { id, title, link: `${location.origin}${location.pathname}#${invite}` }
+    const id = await s.joinLounge(title)
+    startedLounge = { id, title, link: loungeLink(title) }
     loungeMode = 'ready'
     renderLounge()
   } catch (err) { $('loungeError').textContent = err.message }
@@ -214,19 +215,22 @@ $('goLounge').onclick = async () => {
   openRoom(id)
 }
 
-$('joinNameForm').onsubmit = async (e) => {
-  e.preventDefault()
-  const you = $('joinName').value.trim()
-  if (!you) return
+async function joinFromLink (you) {
   try {
     if (!me || me.name !== you) await s.setName(you)
-    const id = await s.joinRoom(inviteFromLink)
-    inviteFromLink = null
+    let id
+    if (loungeFromLink) id = await s.joinLounge(loungeFromLink)
+    else { id = await s.joinRoom(inviteFromLink); toast('Joined. History arrives as soon as someone in the room is online.') }
+    inviteFromLink = loungeFromLink = null
     loungeMode = null
     await refresh()
     openRoom(id)
-    toast('Joined. History arrives as soon as someone in the room is online.')
-  } catch (err) { $('loungeError').textContent = err.message }
+  } catch (err) { renderLounge.went = false; $('loungeError').textContent = err.message }
+}
+$('joinNameForm').onsubmit = (e) => {
+  e.preventDefault()
+  const you = $('joinName').value.trim()
+  if (you) joinFromLink(you)
 }
 
 $('howBtn').onclick = $('howBtn2').onclick = () => { $('howDialog').hidden = false }
@@ -238,8 +242,14 @@ $('nameForm').onsubmit = async (e) => {
   e.preventDefault()
   const name = $('nameInput').value.trim()
   if (!name) return
-  try { await s.setName(name) } catch (err) { $('welcomeError').textContent = err.message; return }
+  let id = null
+  try {
+    await s.setName(name)
+    const lounge = $('welcomeLounge').value.trim()
+    if (lounge) id = await s.joinLounge(lounge)
+  } catch (err) { $('welcomeError').textContent = err.message; return }
   await refresh()
+  if (id) openRoom(id)
 }
 
 // ---------- Sidebar ----------
@@ -265,7 +275,33 @@ function renderSidebar () {
   nav.textContent = ''
   const byTitle = (a, b) => a.title.localeCompare(b.title)
 
-  // Your space first, always.
+  // Lounges first: type a name to join. The name is the code.
+  const lounges = el('div', 'space')
+  lounges.append(el('div', 'space-name', 'Lounges'))
+  const lul = el('ul')
+  rooms.filter((r) => r.lounge).sort(byTitle).forEach((r) => lul.append(roomItem(r)))
+  lounges.append(lul)
+  const lform = el('form', 'new-room')
+  const linput = el('input')
+  linput.placeholder = '+ join a lounge'
+  linput.maxLength = 40
+  linput.autocomplete = 'off'
+  lform.append(linput)
+  lform.onsubmit = async (e) => {
+    e.preventDefault()
+    const v = linput.value.trim()
+    if (!v) return
+    try {
+      const id = /^slake:/.test(v) ? await s.joinRoom(v) : await s.joinLounge(v)
+      linput.value = ''
+      await refresh()
+      openRoom(id)
+    } catch (err) { toast(err.message) }
+  }
+  lounges.append(lform)
+  nav.append(lounges)
+
+  // Your space: private rooms you own.
   const mine = el('div', 'space')
   mine.append(el('div', 'space-name', 'Your space'))
   const ul = el('ul')
@@ -293,7 +329,7 @@ function renderSidebar () {
 
   // Then everyone else's spaces you've been invited into.
   const owners = new Map()
-  for (const r of rooms.filter((x) => !x.mine && !x.dm)) {
+  for (const r of rooms.filter((x) => !x.mine && !x.dm && !x.lounge)) {
     if (!owners.has(r.owner)) owners.set(r.owner, { name: r.ownerName, rooms: [] })
     owners.get(r.owner).rooms.push(r)
   }
@@ -332,21 +368,6 @@ function renderSidebar () {
   nav.append(dms)
 }
 
-$('joinForm').onsubmit = async (e) => {
-  e.preventDefault()
-  const v = $('joinInput').value.trim()
-  if (!v) return
-  const isCode = /^[\w\s-]{5,7}$/.test(v) && v.replace(/[\s-]/g, '').length === 5
-  try {
-    if (isCode) toast('Knocking…')
-    const id = isCode ? await s.joinWithCode(v) : await s.joinRoom(v)
-    $('joinInput').value = ''
-    await refresh()
-    openRoom(id)
-    toast(isCode ? "You're in." : 'Joined. History arrives as soon as someone in the room is online.')
-  } catch (err) { toast(err.message) }
-}
-
 // ---------- Room ----------
 function openRoom (id) {
   if (id !== current) { pending = null; showPending(); membersOpen = false }
@@ -372,7 +393,7 @@ function renderHeader () {
   if (r.dm) {
     $('roomSub').textContent = online.has(r.peer) ? 'Direct message · online now' : 'Direct message · offline'
   } else {
-    const where = r.mine ? 'In your space' : `In ${r.ownerName}'s space`
+    const where = r.lounge ? 'Lounge' : r.mine ? 'In your space' : `In ${r.ownerName}'s space`
     const names = (r.onlineKeys || []).map(nameOf)
     const who = r.closedAt ? 'deleted' : r.removed ? 'removed'
       : !names.length ? 'nobody else online'
@@ -483,6 +504,8 @@ function renderMessages () {
     if (r && !r.removed && !r.closedAt) {
       box.append(el('p', 'empty', r.dm
         ? (online.has(r.peer) ? `Say hi to ${r.title}.` : `${r.title} gets this conversation the next time you're both online.`)
+        : r.lounge
+        ? `Nothing here yet. Anyone who types "${r.title}" joins this lounge. Right-click it to copy the link.`
         : r.mine
         ? `Nothing in #${r.title} yet. Right-click the room to invite people.`
         : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
@@ -674,7 +697,6 @@ $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') cl
 $('searchClose').onclick = closeSearch
 document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !$('chat').hidden) { e.preventDefault(); openSearch() }
-  if (e.key === 'Escape' && !$('codeDialog').hidden) $('codeDialog').hidden = true
   if (e.key === 'Escape' && !$('avatarPicker').hidden) $('avatarPicker').hidden = true
   if (e.key === 'Escape' && searching) closeSearch()
   else if (e.key === 'Escape' && membersOpen) closeMembers()
@@ -700,16 +722,6 @@ function renderAll () {
 // Everything you can do to a room or a person lives here, so the window
 // itself stays clean.
 
-async function showCode (r) {
-  const { code } = await s.inviteCode(r.id)
-  $('codeTitle').textContent = `Code for #${r.title}`
-  $('codeValue').textContent = code
-  $('codeNote').textContent = 'Anyone who types this in the join box gets in, for the next 15 minutes, while your Slake is running. It works for as many people as you give it to.'
-  $('codeDialog').hidden = false
-  $('codeCopy').onclick = async () => { await s.copyText(code); toast('Code copied') }
-}
-$('codeClose').onclick = () => { $('codeDialog').hidden = true }
-s.onKnocked(({ name, title }) => toast(`${name} joined #${title} with your code`))
 s.onClosed(({ title, by }) => { toast(`${by} deleted #${title}`); refresh() })
 
 function fmtLeftUntil (ts) {
@@ -731,7 +743,7 @@ function showMembers (r) {
 }
 
 async function leave (r) {
-  const ok = await s.confirm({ action: 'Leave', message: `Leave #${r.title}?`, detail: `It comes off your sidebar. To come back you'll need a new invite from ${r.ownerName}.` })
+  const ok = await s.confirm({ action: 'Leave', message: `Leave #${r.title}?`, detail: r.lounge ? 'It comes off your sidebar. To come back, type its name again.' : `It comes off your sidebar. To come back you'll need a new invite from ${r.ownerName}.` })
   if (!ok) return
   await s.leaveRoom(r.id)
   if (current === r.id) current = null
@@ -749,14 +761,15 @@ function roomMenu (r) {
   const bg = { id: 'background', label: 'Background…' }
   if (r.removed || r.closedAt) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
   if (r.dm) return [bg, { type: 'separator' }, { id: 'closeDM', label: 'Close conversation' }]
-  if (r.mine) return [{ id: 'code', label: 'Invite with a code…' }, { id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }, bg, { type: 'separator' }, { id: 'delete', label: 'Delete room…' }]
+  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave lounge…' }]
+  if (r.mine) return [{ id: 'invite', label: 'Copy full invite' }, { type: 'separator' }, { id: 'members', label: 'Members…' }, bg, { type: 'separator' }, { id: 'delete', label: 'Delete room…' }]
   return [bg, { type: 'separator' }, { id: 'leave', label: 'Leave room…' }]
 }
 
 async function runRoomChoice (r, choice) {
   if (choice === 'invite') await copyInvite(r)
   if (choice === 'background') s.openStudio({ mode: 'room', room: r.id })
-  if (choice === 'code') await showCode(r)
+  if (choice === 'link') { await copyText(loungeLink(r.title)); toast('Link copied. Anyone who opens it joins this lounge.') }
   if (choice === 'members') showMembers(r)
   if (choice === 'leave') await leave(r)
   if (choice === 'delete') {
@@ -1073,6 +1086,7 @@ async function refresh () {
     return
   }
   $('welcome').hidden = true
+  $('lounge').hidden = true
   $('chat').hidden = false
   if (current && !roomById(current)) current = null
   if (!current && rooms.length) current = [...rooms].sort((a, b) => (b.mine - a.mine) || a.title.localeCompare(b.title))[0].id
