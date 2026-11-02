@@ -422,6 +422,7 @@ app.whenReady().then(async () => {
   // then start over at the name screen.
   handle('logout', async () => {
     const dir = slake.dataDir
+    await slake.farewell()
     slake.removeAllListeners()
     await slake.stop()
     fs.rmSync(dir, { recursive: true, force: true })

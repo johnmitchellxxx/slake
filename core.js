@@ -21,7 +21,7 @@ const { EventEmitter } = require('events')
 const MAX_TEXT = 4000
 const MAX_LINE = 8 * 1024 * 1024
 const MAX_MEMBERS = 256
-const KINDS = new Set(['room', 'join', 'msg', 'rekey', 'file', 'profile', 'close'])
+const KINDS = new Set(['room', 'join', 'leave', 'msg', 'rekey', 'file', 'profile', 'close'])
 const CLOSE_KEEP = 7 * 24 * 3600 * 1000  // how long a deleted room's note keeps travelling
 const MAX_AVATAR = 60000  // a small photo, as text
 
@@ -62,7 +62,7 @@ function validAvatar (a) {
 function validBody (kind, b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return false
   if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40 && (b.dm === undefined || b.dm === true)
-  if (kind === 'join' || kind === 'close') return Object.keys(b).length === 0
+  if (kind === 'join' || kind === 'leave' || kind === 'close') return Object.keys(b).length === 0
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
   if (kind === 'profile') return validAvatar(b.avatar)
   if (kind === 'file') {
@@ -606,9 +606,24 @@ class Slake extends EventEmitter {
   }
 
   // Take a room off your sidebar. History is renamed aside, not deleted.
-  async leaveRoom (roomId) {
+  // Drop a "left" note in a room (not in DMs, and not in rooms that are over).
+  _bye (room) {
+    if (room.dm || room.removed || room.closedAt) return false
+    if (!this.onlineIn(room.id).length) return false   // nobody here to tell
+    try { this._publish(room, this._sign(room, 'leave', room.epoch, {})); return true } catch { return false }
+  }
+
+  // Say goodbye in every room you're in, then give the note a moment to travel.
+  async farewell () {
+    let any = false
+    for (const room of this.rooms.values()) if (this._bye(room)) any = true
+    if (any) await new Promise((resolve) => setTimeout(resolve, 900))
+  }
+
+  async leaveRoom (roomId, { quiet = false } = {}) {
     const room = this._room(roomId)
     if (room.owner === this.identity.publicKey && !room.dm && !room.closedAt) throw new Error("You own this room, so it stays in your space")
+    if (!quiet && this._bye(room)) await new Promise((resolve) => setTimeout(resolve, 700))
     if (room.dm && this._pendingDMs().delete(roomId)) this._savePendingDMs()
     await this._leaveTopics(room)
     this._unindexKeys(room)

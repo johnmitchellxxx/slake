@@ -105,6 +105,7 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   await assert.rejects(() => ana.deleteRoom(lounge), /owner/)
   await zed.leaveRoom(lounge)
   assert.strictEqual(zed.rooms.has(lounge), false)
+  await until(() => [...ana.rooms.get(lounge).records.values()].some((r) => r.kind === 'leave' && r.author === zed.me.publicKey), 'Ana sees a "left" note when Zed leaves')
   assert.strictEqual(await zed.joinLounge('f1 pj hang'), lounge)
   console.log('✓ A lounge is its name: any spelling lands in the same room; late joiners get the history; a different name is a different room; nobody can remove or delete')
   await Promise.all([ana.stop(), zed.stop(), kit.stop()])

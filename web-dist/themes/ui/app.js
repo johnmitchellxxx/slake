@@ -453,6 +453,7 @@ const fmtDay = (ts) => new Date(ts).toLocaleDateString([], { weekday: 'long', mo
 function noteText (rec) {
   if (rec.kind === 'room') return `${rec.name} made this room`
   if (rec.kind === 'join') return `${rec.name} joined`
+  if (rec.kind === 'leave') return `${rec.name} left the space`
   if (rec.kind === 'rekey') {
     return rec.removedNames && rec.removedNames.length
       ? `${rec.name} removed ${rec.removedNames.join(', ')}`
@@ -472,7 +473,7 @@ function renderMessages () {
   const inDM = !!(roomById(current) || {}).dm
   for (const m of list) {
     if (m.kind === 'profile') continue
-    if (inDM && (m.kind === 'room' || m.kind === 'join')) continue
+    if (inDM && (m.kind === 'room' || m.kind === 'join' || m.kind === 'leave')) continue
     if (fmtDay(m.ts) !== prevDay) {
       box.append(el('div', 'day', fmtDay(m.ts)))
       prevDay = fmtDay(m.ts)

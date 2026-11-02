@@ -253,6 +253,7 @@ window.slake = {
   state: api(() => state()),
   setName: api((n) => slake.setName(n)),
   logout: api(async () => {
+    await slake.farewell()
     slake.removeAllListeners()
     await slake.stop()
     await fs.wipe()
