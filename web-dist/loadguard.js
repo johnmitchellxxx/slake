@@ -7,3 +7,4 @@ function slakeCheck () {
 }
 window.addEventListener('error', slakeCheck)
 window.addEventListener('unhandledrejection', slakeCheck)
+document.addEventListener('DOMContentLoaded', function () { var b = document.getElementById('loadReload'); if (b) b.addEventListener('click', function () { location.reload() }) })

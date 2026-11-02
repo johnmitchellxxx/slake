@@ -27,8 +27,16 @@ function openDB () {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB, 1)
     req.onupgradeneeded = () => req.result.createObjectStore(STORE)
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      const d = req.result
+      // Another tab is erasing or upgrading: step aside so it isn't stuck waiting for us.
+      d.onversionchange = () => { d.close(); if (db === d) db = null }
+      resolve(d)
+    }
     req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error('blocked'))
+    // If the browser never answers (a stuck erase in another tab), carry on without saving.
+    setTimeout(() => reject(new Error('timeout')), 4000)
   })
 }
 
