@@ -81,7 +81,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.sla
   // Browsers need to reach the public meeting relays (wss:) and run the
   // password hash (WebAssembly).
   html = html.replace(/<meta http-equiv="Content-Security-Policy" content="[^"]*">/,
-    `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws:; script-src 'self' 'wasm-unsafe-eval'">`)
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws: https://api.github.com; script-src 'self' 'wasm-unsafe-eval'">`)
   html = html.replace('<head>', `<head>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#16161d">

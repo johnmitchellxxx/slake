@@ -409,3 +409,69 @@ window.slakeStudio = {
   closeStudio: async () => closeStudio(),
   openThemes: async () => {}
 }
+
+// ---------- "Get the desktop app", top right (computers only) ----------
+const RELEASES = 'https://github.com/johnmitchellxxx/slake/releases/latest'
+;(() => {
+  const st = document.createElement('style')
+  st.textContent = `
+.get-desktop { position: fixed; top: 12px; right: 14px; z-index: 40; }
+.get-desktop > button { background: rgba(127,127,127,.16); color: var(--text); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 12px; font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; box-shadow: none; text-transform: none; letter-spacing: 0; cursor: pointer; }
+.get-desktop > button:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.get-desktop .pop { position: absolute; right: 0; top: calc(100% + 6px); width: 270px; padding: 12px; border-radius: 12px;
+  background: #23232b; color: #eee; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+.get-desktop .pop p { margin: 0 0 10px; color: #b9b7c6; }
+.get-desktop .pop a { display: block; padding: 8px 10px; border-radius: 8px; color: #fff; text-decoration: none; background: rgba(255,255,255,.06); margin-top: 6px; }
+.get-desktop .pop a:hover { background: #3b82f6; }
+.get-desktop .pop small { display: block; color: #8d8aa0; margin-top: 2px; font-size: 11px; }
+@media (max-width: 640px), (display-mode: standalone) { .get-desktop { display: none; } }`
+  document.head.append(st)
+
+  const wrap = document.createElement('div')
+  wrap.className = 'get-desktop'
+  const btn = document.createElement('button')
+  btn.type = 'button'
+  btn.textContent = 'Get the desktop app ↓'
+  const pop = document.createElement('div')
+  pop.className = 'pop'
+  pop.hidden = true
+  wrap.append(btn, pop)
+  document.addEventListener('DOMContentLoaded', () => document.body.append(wrap))
+  if (document.readyState !== 'loading') document.body.append(wrap)
+
+  const link = (href, label, note) => {
+    const a = document.createElement('a')
+    a.href = href; a.target = '_blank'; a.rel = 'noopener'
+    a.textContent = label
+    if (note) { const sm = document.createElement('small'); sm.textContent = note; a.append(sm) }
+    return a
+  }
+  async function fill () {
+    pop.textContent = ''
+    const p = document.createElement('p')
+    p.textContent = 'Keeps your account safe, stays on in the menu bar, and handles big files.'
+    pop.append(p)
+    let assets = []
+    try { assets = (await (await fetch('https://api.github.com/repos/johnmitchellxxx/slake/releases/latest')).json()).assets || [] } catch {}
+    const find = (re) => { const a = assets.find((x) => re.test(x.name)); return a ? a.browser_download_url : null }
+    const mac = find(/arm64\.dmg$/)
+    const intel = find(/x64\.dmg$/)
+    const win = find(/Setup.*\.exe$/)
+    const isWin = /Win/.test(navigator.platform)
+    const opts = [
+      mac && link(mac, 'Mac', 'Apple chip (M1 or newer)'),
+      intel && link(intel, 'Mac (older Intel)', null),
+      win && link(win, 'Windows', null)
+    ].filter(Boolean)
+    if (isWin) opts.reverse()
+    for (const o of opts) pop.append(o)
+    pop.append(link(RELEASES, opts.length ? 'All downloads' : 'Downloads page', 'On GitHub'))
+  }
+  btn.onclick = async () => {
+    pop.hidden = !pop.hidden
+    if (!pop.hidden) await fill()
+  }
+  document.addEventListener('mousedown', (e) => { if (!wrap.contains(e.target)) pop.hidden = true })
+})()
