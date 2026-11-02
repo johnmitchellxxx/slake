@@ -1054,15 +1054,13 @@ refresh()
 
 $('leaveBtn').onclick = () => { const r = roomById(current); if (r) leave(r).catch((e) => toast(e.message)) }
 
-// The start-screen tagline rotates through a few ways of saying the same thing.
+// The start-screen tagline: a different one each time you visit.
 {
   const lines = ['Ephemeral jam spaces', 'Transient shared spaces', 'Fleeting, impromptu hangouts']
+  let last = -1
+  try { last = Number(localStorage.getItem('slakeTag')) } catch {}
   let i = Math.floor(Math.random() * lines.length)
-  const tag = $('tagline')
-  tag.textContent = lines[i]
-  tag.style.transition = 'opacity .5s'
-  setInterval(() => {
-    tag.style.opacity = '0'
-    setTimeout(() => { i = (i + 1) % lines.length; tag.textContent = lines[i]; tag.style.opacity = '1' }, 500)
-  }, 3500)
+  if (i === last) i = (i + 1) % lines.length   // never the same one twice in a row
+  try { localStorage.setItem('slakeTag', String(i)) } catch {}
+  $('tagline').textContent = lines[i]
 }
