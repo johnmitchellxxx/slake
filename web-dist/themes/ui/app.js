@@ -159,10 +159,7 @@ function renderLounge () {
   $('loungeError').textContent = ''
 
   if (loungeMode === 'start') {
-    $('startForm').hidden = false
-    $('createAsk').hidden = true
-    $('whoAsk').hidden = true
-    $('loungeName').focus()
+    resetStart()
   }
   if (loungeMode === 'join') {
     const info = { title: loungeFromLink }
@@ -180,96 +177,113 @@ function renderLounge () {
   }
 }
 
-// Make a space, or join one. The name is the code. Your own name is asked
-// only when you arrive and don't have one yet.
-let probing = null  // { id, title } while we wait to see if anyone is there
-let wanted = null   // { mode: 'make' | 'join', title } waiting for your name
+// The start screen builds downward, one step under the last:
+//   Make / Join  ->  space name  ->  (link copied)  ->  your name  ->  in.
+let step = { mode: null, title: '', probing: null }
+const show = (id, on = true) => { $(id).hidden = !on }
 
-async function arrive (mode, title) {
+function resetStart () {
+  step = { mode: null, title: '', probing: null }
+  for (const id of ['startForm', 'copiedNote', 'createAsk', 'whoForm']) show(id, false)
+  $('loungeName').value = ''
+  $('loungeName').readOnly = false
+  $('makeBtn').classList.remove('picked'); $('joinBtn').classList.remove('picked')
   $('loungeError').textContent = ''
-  if (!me || !me.name) {
-    wanted = { mode, title }
-    $('startForm').hidden = true
-    $('whoAsk').hidden = false
-    $('whoText').textContent = `Almost in: "${title}". What should we call you?`
-    $('whoName').focus()
-    return
-  }
-  const busy = mode === 'make' ? $('makeBtn') : $('joinBtn')
-  const label = busy.textContent
-  $('makeBtn').disabled = $('joinBtn').disabled = true
-  if (mode === 'join') busy.textContent = 'Looking…'
-  try {
-    if (mode === 'make') {
-      const copied = await copyText(loungeLink(title))   // first, while the click still counts
-      const id = await s.joinLounge(title)
-      loungeMode = null
-      await refresh()
-      openRoom(id)
-      toast(copied ? 'Link copied to your clipboard. Send it to anyone you want here.' : 'Space made. Right-click it to copy the link.', 3500)
-    } else {
-      const had = (await s.state()).rooms.some((r) => r.lounge && r.title.toLowerCase() === title.toLowerCase())
-      const id = await s.joinLounge(title)
-      let there = had
-      for (let i = 0; i < 16 && !there; i++) {
-        await new Promise((ok) => setTimeout(ok, 500))
-        const st = await s.state()
-        const r = st.rooms.find((x) => x.id === id)
-        there = !!r && (r.onlineKeys.length > 0 || (st.records[id] || []).some((x) => x.kind === 'msg' || x.kind === 'file'))
-      }
-      if (there) {
-        loungeMode = null
-        await refresh()
-        openRoom(id)
-      } else {
-        probing = { id, title }
-        $('createText').textContent = `Couldn't find a space called "${title}". Check the spelling (capital letters don't matter), or make it instead.`
-        $('startForm').hidden = true
-        $('createAsk').hidden = false
-      }
-    }
-  } catch (err) { $('loungeError').textContent = err.message }
-  $('makeBtn').disabled = $('joinBtn').disabled = false
-  busy.textContent = label
 }
 
-$('startForm').onsubmit = (e) => {
+function pick (mode) {
+  if (step.probing) { s.leaveRoom(step.probing.id).catch(() => {}) }
+  resetStart()
+  step.mode = mode
+  $((mode === 'make' ? 'makeBtn' : 'joinBtn')).classList.add('picked')
+  show('startForm')
+  $('loungeName').focus()
+}
+$('makeBtn').onclick = () => pick('make')
+$('joinBtn').onclick = () => pick('join')
+
+async function enterSpace (id) {
+  loungeMode = null
+  await refresh()
+  openRoom(id)
+}
+
+// Make: the link is copied the moment you submit (while your click still counts).
+async function noteCopied (title) {
+  const ok = await copyText(loungeLink(title))
+  $('copiedNote').textContent = ok ? 'Invite link copied to your clipboard.' : "Couldn't copy the link automatically. Right-click the space later to copy it."
+  show('copiedNote')
+}
+
+async function finish () {
+  const { mode, title } = step
+  $('whoGo').disabled = $('spaceGo').disabled = true
+  try {
+    if (mode === 'make') {
+      await enterSpace(await s.joinLounge(title))
+      return
+    }
+    const had = (await s.state()).rooms.some((r) => r.lounge && r.title.toLowerCase() === title.toLowerCase())
+    const id = await s.joinLounge(title)
+    let there = had
+    for (let i = 0; i < 16 && !there; i++) {
+      await new Promise((ok) => setTimeout(ok, 500))
+      const st = await s.state()
+      const r = st.rooms.find((x) => x.id === id)
+      there = !!r && (r.onlineKeys.length > 0 || (st.records[id] || []).some((x) => x.kind === 'msg' || x.kind === 'file'))
+    }
+    if (there) { await enterSpace(id); return }
+    step.probing = { id, title }
+    $('createText').textContent = `Couldn't find a space called "${title}". Check the spelling (capital letters don't matter), or make it instead.`
+    show('whoForm', false)
+    show('createAsk')
+  } catch (err) { $('loungeError').textContent = err.message }
+  $('whoGo').disabled = $('spaceGo').disabled = false
+}
+
+// After the space name: Make copies the link; then ask your name if we don't have it.
+$('startForm').onsubmit = async (e) => {
   e.preventDefault()
   const title = $('loungeName').value.trim()
   if (!title) { $('loungeError').textContent = 'Type a space name first'; $('loungeName').focus(); return }
-  arrive(e.submitter && e.submitter.id === 'joinBtn' ? 'join' : 'make', title)
+  $('loungeError').textContent = ''
+  step.title = title
+  $('loungeName').readOnly = true
+  if (step.mode === 'make') await noteCopied(title)
+  show('createAsk', false)
+  if (me && me.name) { await finish(); return }
+  show('whoForm')
+  $('whoName').focus()
 }
 
 $('whoForm').onsubmit = async (e) => {
   e.preventDefault()
   const you = $('whoName').value.trim()
-  if (!you || !wanted) return
+  if (!you) return
   try {
     await s.setName(you)
     me = (await s.state()).me
-    const w = wanted
-    wanted = null
-    $('whoAsk').hidden = true
-    $('startForm').hidden = false
-    await arrive(w.mode, w.title)
-  } catch (err) { $('loungeError').textContent = err.message }
+  } catch (err) { $('loungeError').textContent = err.message; return }
+  await finish()
 }
 
 $('createYes').onclick = async () => {
-  const { id, title } = probing
-  probing = null
-  const copied = await copyText(loungeLink(title))
-  loungeMode = null
-  await refresh()
-  openRoom(id)
-  toast(copied ? 'Link copied to your clipboard. Send it to anyone you want here.' : 'Space made. Right-click it to copy the link.', 3500)
+  const { id, title } = step.probing
+  step.probing = null
+  await noteCopied(title)
+  await enterSpace(id)
 }
 $('createNo').onclick = async () => {
-  try { await s.leaveRoom(probing.id) } catch {}
-  probing = null
-  loungeMode = 'start'
-  renderLounge()   // keeps what you typed so you can fix it
+  const p = step.probing
+  step.probing = null
+  if (p) { try { await s.leaveRoom(p.id) } catch {} }
+  show('createAsk', false)
+  show('whoForm', false)
+  $('loungeName').readOnly = false
+  $('loungeName').focus()
+  $('loungeName').select()
 }
+
 
 async function joinFromLink (you) {
   try {

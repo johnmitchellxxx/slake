@@ -27,29 +27,34 @@
 
       <div id="loungeStart" hidden>
         <p class="tagline" id="tagline">Ephemeral jam spaces</p>
-        <form id="startForm" autocomplete="off">
-          <label for="loungeName">Space name</label>
-          <input id="loungeName" maxlength="40" autocomplete="off" placeholder="For example: Creative Jam 26">
-          <div class="two">
-            <button type="submit" id="makeBtn">Make a space</button>
-            <button type="submit" id="joinBtn" class="secondary">Join a space</button>
-          </div>
-        </form>
-        <div id="whoAsk" hidden>
-          <p class="sub" id="whoText"></p>
-          <form id="whoForm">
-            <label for="whoName">Your name</label>
-            <input id="whoName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
-            <button type="submit">Continue</button>
-          </form>
+
+        <div class="two" id="step1">
+          <button id="makeBtn" type="button">Make a space</button>
+          <button id="joinBtn" type="button" class="secondary">Join a space</button>
         </div>
-        <div id="createAsk" hidden>
+
+        <form id="startForm" class="step" autocomplete="off" hidden>
+          <label for="loungeName">What's the space called?</label>
+          <input id="loungeName" maxlength="40" autocomplete="off" placeholder="For example: Creative Jam 26">
+          <button type="submit" id="spaceGo">Submit</button>
+        </form>
+
+        <p id="copiedNote" class="step note-line" hidden></p>
+
+        <div id="createAsk" class="step" hidden>
           <p class="sub" id="createText"></p>
           <div class="share">
             <button id="createNo" type="button">Check the spelling</button>
             <button id="createYes" type="button" class="secondary">Make it instead</button>
           </div>
         </div>
+
+        <form id="whoForm" class="step" hidden>
+          <label for="whoName">Your name</label>
+          <input id="whoName" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
+          <button type="submit" id="whoGo">Go</button>
+        </form>
+
         <button id="howBtn" class="ghost full" type="button">How it works</button>
       </div>
 
