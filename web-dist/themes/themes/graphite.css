@@ -1,0 +1,26 @@
+/* Graphite: quiet charcoal with one ice-blue accent. Calm, like a good
+   workspace tool. The active space gets a thin blue bar, not a filled pill. */
+:root {
+  --bg: #121417;
+  --panel: #181b1f;
+  --panel-2: #20242a;
+  --text: #e6e9ee;
+  --muted: #8a93a1;
+  --accent: #6aa8ff;
+  --accent-text: #08121f;
+  --line: #262b32;
+  --radius: 8px;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --wordmark: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --msg-size: 15px;
+}
+.wordmark { font-style: normal; font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+.wordmark::after { content: "."; color: var(--accent); }
+.space-name, .day { font-size: 10.5px; letter-spacing: 0.14em; font-weight: 600; }
+.space li { border-radius: 6px; position: relative; }
+.space li.active { background: var(--panel-2); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+.room-title > div:first-child { font-weight: 650; letter-spacing: -0.01em; }
+.room-title .hash { color: var(--accent); }
+.name { font-weight: 650; }
+.time { opacity: 0.8; }
+button:not(.ghost):not(.secondary) { font-weight: 600; }

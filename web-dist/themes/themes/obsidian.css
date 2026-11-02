@@ -1,0 +1,26 @@
+/* Obsidian: true black with champagne-gold lines. Serif headings, small
+   capital labels, hairline borders. Boardroom after dark. */
+:root {
+  --bg: #08080a;
+  --panel: #0d0d10;
+  --panel-2: #16161a;
+  --text: #ece8df;
+  --muted: #8b857a;
+  --accent: #d6b673;
+  --accent-text: #15100a;
+  --line: #24211b;
+  --radius: 3px;
+  --font: "Avenir Next", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --wordmark: "Didot", "Bodoni 72", Georgia, "Times New Roman", serif;
+  --msg-size: 15px;
+}
+.wordmark { font-style: normal; font-weight: 400; letter-spacing: 0.08em; color: var(--accent); }
+.space-name, .day { font-size: 10px; letter-spacing: 0.24em; font-weight: 600; text-transform: uppercase; color: var(--accent); opacity: 0.85; }
+.space li { border-radius: 2px; }
+.space li.active { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 600; }
+.room-title > div:first-child { font-family: var(--wordmark); font-weight: 400; font-size: 24px; letter-spacing: 0.04em; }
+.room-title .hash { color: var(--accent); }
+.name { font-weight: 600; color: var(--accent); }
+.time { letter-spacing: 0.04em; }
+.avatar { box-shadow: 0 0 0 1px var(--line); }
+button:not(.ghost):not(.secondary) { letter-spacing: 0.06em; font-weight: 600; }

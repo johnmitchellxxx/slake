@@ -1,0 +1,29 @@
+/* Paper: a light, warm workspace. Off-white page, near-black ink, deep green
+   accent, a serif wordmark. Easy on the eyes in daylight. */
+:root {
+  --bg: #f8f6f1;
+  --panel: #efece4;
+  --panel-2: #e6e2d8;
+  --text: #1f1f22;
+  --muted: #76726a;
+  --accent: #1f6b57;
+  --accent-text: #ffffff;
+  --line: #dcd7ca;
+  --danger: #b3261e;
+  --radius: 6px;
+  --font: "Avenir Next", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --wordmark: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --msg-size: 15px;
+}
+.wordmark { font-style: italic; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+.space-name, .day { font-size: 10.5px; letter-spacing: 0.16em; font-weight: 600; text-transform: uppercase; }
+.space li { border-radius: 4px; color: #3a3a40; }
+.space li:hover { background: var(--panel-2); color: var(--text); }
+.space li.active { background: var(--text); color: #f8f6f1; font-weight: 600; }
+.space li.active .live { background: #f8f6f1; }
+.room-title > div:first-child { font-family: var(--wordmark); font-weight: 700; font-size: 20px; }
+.room-title .hash { color: var(--accent); }
+.name { font-weight: 700; }
+.msg .body { color: #26262a; }
+.avatar { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08); }
+.toast { background: var(--text); color: #f8f6f1; }
