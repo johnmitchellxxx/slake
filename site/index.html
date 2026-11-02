@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss: ws:; script-src 'self'">
+  <meta name="theme-color" content="#16161d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Slake">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon-192.png">
+  <title>Slake</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" id="theme">
+</head>
+<body>
+  <!-- Start a lounge, or (with someone's link) say who you are and join -->
+  <section id="start" class="screen">
+    <div class="card">
+      <h1 class="wordmark">slake</h1>
+      <p id="startSub" class="sub">Start a lounge, send the link, and talk. No accounts, no passwords.</p>
+      <form id="startForm">
+        <label for="who">Your name</label>
+        <input id="who" maxlength="40" autocomplete="nickname" placeholder="What people call you" required>
+        <label for="loungeName" id="loungeLabel">Lounge name</label>
+        <input id="loungeName" maxlength="40" autocomplete="off" placeholder="Name your lounge">
+        <button id="startBtn">Start the lounge</button>
+      </form>
+      <button id="how" class="ghost full" type="button">How it works</button>
+    </div>
+  </section>
+
+  <!-- Inside a lounge -->
+  <section id="chat" class="screen" hidden>
+    <aside class="sidebar">
+      <header class="brand">
+        <div class="wordmark small">slake</div>
+        <div class="me-line">You're <b id="me"></b></div>
+      </header>
+      <nav><div class="space"><div class="space-name">Here now</div><ul id="people"></ul></div></nav>
+    </aside>
+    <main class="room">
+      <header class="room-head">
+        <div class="room-title">
+          <div><span class="hash">#</span><span id="roomName"></span></div>
+          <div id="roomSub" class="room-sub"></div>
+        </div>
+        <div class="room-actions">
+          <select id="themeSelect" aria-label="Theme"></select>
+          <button id="invite">Invite</button>
+          <button id="leave" class="secondary">Leave</button>
+        </div>
+      </header>
+      <div class="room-body"><div id="messages" class="messages" aria-live="polite"></div></div>
+      <form id="composer" class="composer">
+        <textarea id="text" rows="1" maxlength="4000" placeholder="Say something…"></textarea>
+        <button>Send</button>
+      </form>
+    </main>
+  </section>
+
+  <div id="howDialog" class="scrim" hidden>
+    <div class="dialog" role="dialog" aria-labelledby="howTitle">
+      <div id="howTitle" class="dialog-title">How it works</div>
+      <ol class="how-list">
+        <li>Name your lounge and tell people what you're called.</li>
+        <li>Send the link by text or email.</li>
+        <li>They open it, pick a name, and they're in.</li>
+      </ol>
+      <p class="dialog-note">Messages go straight between people's own devices, and nothing is kept on our server. A lounge lasts as long as people stay in it. When everyone leaves, it's gone.</p>
+      <div class="dialog-actions"><button id="howClose" class="ghost">Got it</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

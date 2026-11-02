@@ -4,7 +4,7 @@
 # separate from the Pantheon site).
 #
 # Run it anywhere VERCEL_TOKEN is set (the Pantheon Replit has it):
-#   rm -rf /tmp/slake && git clone -q --depth 1 https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh
+#   rm -rf /tmp/slake && git clone -q --depth 1 -b lite https://github.com/johnmitchellxxx/slake /tmp/slake && bash /tmp/slake/tools/publish-web.sh
 #
 set -euo pipefail
 
@@ -19,11 +19,10 @@ if [ -z "${VERCEL_TOKEN:-}" ]; then
   exit 1
 fi
 
-echo "==> [1/2] Getting the built web app..."
-# web-dist/ is built ahead of time (node tools/build-web.js web-dist) and
-# saved in the repo, so publishing needs no installs.
+echo "==> [1/2] Getting the site files..."
+# site/ is plain files (no build step), so publishing needs no installs.
 mkdir -p "$OUT"
-cp -R "$HERE/web-dist/." "$OUT/"
+cp -R "$HERE/site/." "$OUT/"
 
 echo "==> [2/2] Deploying to Vercel and pointing $DOMAIN at it..."
 node "$HERE/tools/vercel-deploy.js" "$OUT" slake "$DOMAIN" "$SCOPE"

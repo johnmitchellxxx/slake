@@ -1,103 +1,16 @@
 {
   "name": "slake",
-  "version": "0.9.1",
-  "description": "Serverless peer-to-peer chat: everyone has a space, rooms live in spaces.",
-  "main": "main.js",
+  "version": "0.10.0",
+  "description": "Tiny serverless chat: start a lounge, send the link, talk.",
+  "private": true,
   "scripts": {
-    "start": "electron .",
-    "second": "electron . --profile=second",
-    "test": "node test.js",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win"
-  },
-  "dependencies": {
-    "hypercore-crypto": "^3.7.0",
-    "hyperswarm": "^4.17.2",
-    "sodium-universal": "^5.0.1"
+    "vendor": "esbuild tools/trystero-entry.js --bundle --format=esm --minify --target=chrome110,safari16,firefox115 --outfile=site/trystero.js",
+    "serve": "python3 -m http.server 8080 -d site",
+    "test": "node test/lounge.js"
   },
   "devDependencies": {
-    "@noble/hashes": "1.8",
-    "buffer": "^6.0.3",
-    "electron": "^45.1.0",
-    "electron-builder": "^26.18.0",
     "esbuild": "^0.24.2",
-    "events": "^3.3.0",
-    "hash-wasm": "4.12",
-    "hyperdht": "^6.35.0",
-    "path-browserify": "^1.0.1",
-    "sodium-javascript": "^0.8.0",
-    "trystero": "^0.21.8"
-  },
-  "productName": "Slake",
-  "author": "Mr. Mitchell",
-  "build": {
-    "appId": "live.pantheon.slake",
-    "productName": "Slake",
-    "copyright": "Slake",
-    "files": [
-      "main.js",
-      "preload.js",
-      "core.js",
-      "bridge/**",
-      "bridge.js",
-      "ui/**",
-      "themes/**",
-      "assets/**",
-      "package.json",
-      "!**/*.map"
-    ],
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "category": "public.app-category.social-networking",
-      "icon": "build/icon.png",
-      "identity": null,
-      "artifactName": "Slake-${version}-${arch}.${ext}"
-    },
-    "dmg": {
-      "title": "Slake"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.png",
-      "artifactName": "Slake-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "shortcutName": "Slake"
-    },
-    "npmRebuild": false,
-    "asarUnpack": [
-      "**/*.node",
-      "**/prebuilds/**"
-    ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "johnmitchellxxx",
-        "repo": "slake",
-        "releaseType": "release"
-      }
-    ],
-    "afterPack": "build/afterPack.js"
+    "trystero": "^0.21.8",
+    "ws": "^8.18.0"
   }
 }

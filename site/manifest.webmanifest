@@ -1,0 +1,15 @@
+{
+  "name": "Slake",
+  "short_name": "Slake",
+  "description": "Start a lounge, send the link, talk. No accounts, no server.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#16161d",
+  "theme_color": "#16161d",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,111 @@
+/* ============================================================
+   Slake's default look (Iris). To restyle it, copy any file in
+   themes/ and change the variables at the top. A theme is just
+   a CSS file loaded after this one, so it can restyle anything.
+   ============================================================ */
+:root {
+  --bg: #16161d;          /* message area */
+  --panel: #1e1e28;       /* sidebar */
+  --panel-2: #262634;     /* inputs, hover */
+  --text: #ece9f2;
+  --muted: #8d8aa0;
+  --accent: #a78bfa;      /* buttons, active things */
+  --accent-text: #160b33;
+  --line: #30303f;
+  --danger: #ff6b81;
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  --wordmark: Georgia, "Iowan Old Style", serif;
+  --msg-size: 15px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: var(--msg-size)/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+[hidden] { display: none !important; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { background: var(--accent); color: var(--accent-text); border: 0; border-radius: var(--radius); padding: 9px 16px; font-weight: 600; cursor: pointer; }
+button:hover { filter: brightness(1.08); }
+button.secondary { background: var(--panel-2); color: var(--text); }
+button.ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
+button.full { width: 100%; }
+input, textarea, select { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 12px; outline: none; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+.wordmark { font-family: var(--wordmark); font-style: italic; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); }
+.screen { height: 100vh; }
+
+/* ---------- Start ---------- */
+#start { display: grid; place-items: center; padding: 24px; text-align: center; }
+.card { width: min(420px, 100%); }
+.card h1 { font-size: 64px; margin: 0 0 14px; line-height: 1; }
+.card .sub { color: var(--muted); margin: 0 0 28px; }
+.card form { display: grid; gap: 8px; margin-bottom: 12px; }
+.card label { font-size: 13px; color: var(--muted); text-align: left; }
+.card form button { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; }
+.card .ghost.full { font-size: 13px; }
+
+/* ---------- Lounge ---------- */
+#chat { display: grid; grid-template-columns: 250px 1fr; }
+.sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--line); }
+.wordmark.small { font-size: 20px; }
+.me-line { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.me-line b { color: var(--text); }
+nav { flex: 1; overflow-y: auto; padding: 10px 8px 14px; }
+.space-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 8px 6px; }
+.space ul { list-style: none; margin: 0; padding: 0; }
+.space li { padding: 5px 10px; border-radius: 6px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.space li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.space li .live { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #5ad48a; }
+
+.room { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.room-head { padding: 12px 18px 12px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.room-title { min-width: 0; font-weight: 700; font-size: 17px; }
+.room-title > div:first-child, .room-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-sub { font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.hash { color: var(--muted); margin-right: 3px; }
+.room-actions { display: flex; gap: 6px; flex: none; }
+.room-actions button, .room-actions select { padding: 7px 12px; font-size: 13px; }
+.room-body { flex: 1; display: flex; min-height: 0; }
+.messages { flex: 1; overflow-y: auto; padding: 16px 22px; min-width: 0; }
+
+.msg { display: grid; grid-template-columns: 38px 1fr; gap: 0 10px; margin-top: 14px; }
+.msg.cont { margin-top: 2px; }
+.msg.cont .avatar, .msg.cont .meta { display: none; }
+.msg.cont .body { grid-column: 2; }
+.avatar { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; color: #fff; grid-row: span 2; }
+.meta { display: flex; align-items: baseline; gap: 8px; }
+.name { font-weight: 700; }
+.time { font-size: 12px; color: var(--muted); }
+.body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.body a { color: var(--accent); }
+.note { color: var(--muted); font-size: 13px; margin: 10px 0 0 48px; }
+
+.empty { color: var(--muted); text-align: center; margin: 12vh auto 0; max-width: 360px; }
+.share { display: flex; gap: 8px; margin-top: 14px; }
+.share > * { flex: 1; display: flex; align-items: center; justify-content: center; white-space: nowrap; text-align: center; padding: 10px; border: 1px solid var(--accent); border-radius: var(--radius); color: var(--text); text-decoration: none; background: transparent; font-weight: 400; }
+
+.composer { display: flex; gap: 10px; padding: 14px 22px 18px; border-top: 1px solid var(--line); }
+.composer textarea { flex: 1; resize: none; max-height: 180px; line-height: 1.4; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 10; }
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; z-index: 20; }
+.dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); padding: 24px 28px; width: min(380px, calc(100vw - 32px)); text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4); }
+.dialog-title { color: var(--muted); font-size: 14px; }
+.dialog-note { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 0 0 18px; }
+.dialog-actions { display: flex; justify-content: center; }
+.how-list { text-align: left; padding-left: 20px; line-height: 1.6; margin: 12px 0; }
+
+/* ---------- Phones: one column, the people list moves into the header ---------- */
+@media (max-width: 640px) {
+  .screen { height: 100dvh; }
+  #chat { grid-template-columns: 1fr; }
+  .sidebar, #leave { display: none; }
+  .room-actions select { max-width: 96px; padding: 7px 8px; }
+  .room-actions button { padding: 7px 10px; }
+  .room-head { padding: calc(10px + env(safe-area-inset-top)) 14px 10px 14px; }
+  .messages { padding: 10px 14px; }
+  .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  input, textarea, select { font-size: 16px; }   /* stops iPhone zooming in */
+  .card h1 { font-size: 56px; }
+}
