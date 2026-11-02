@@ -397,3 +397,14 @@ button.confirm { color: var(--danger) !important; }
 .card.lounge .two button.picked { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card.lounge #startForm input, .card.lounge #whoForm input { margin-bottom: 8px; }
 @keyframes stepIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Start screen: more compact boxes */
+.card.lounge { max-width: 340px; }
+.card.lounge input { padding: 8px 11px; font-size: 15px; }
+.card.lounge label { font-size: 12px; }
+.card.lounge button { padding: 8px 12px; font-size: 14px; }
+.card.lounge #loungeStart button[type=submit], .card.lounge #loungeJoin button[type=submit] { padding: 8px; font-size: 14px; }
+.card.lounge .two { gap: 8px; }
+.card.lounge .step { margin-top: 12px; }
+.card.lounge .tagline { font-size: 15px; margin-bottom: 14px; }
+@media (max-width: 640px) { .card.lounge input, .card.lounge button, .card.lounge #loungeStart button[type=submit] { font-size: 16px; } }
