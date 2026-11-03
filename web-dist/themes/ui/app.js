@@ -93,7 +93,7 @@ function avatarEl (key, small) {
     node.textContent = a.emoji
   } else {
     const b = badge(key)
-    node.style.background = b.color
+    node.classList.add('plain')   // everyone starts as a neutral grey tile
     node.textContent = [...b.emoji][0]
   }
   if (online.has(key) && key !== (me && me.publicKey)) {
