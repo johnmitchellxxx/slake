@@ -409,5 +409,5 @@ button.confirm { color: var(--danger) !important; }
 .card.lounge .tagline { font-size: 15px; margin-bottom: 14px; }
 @media (max-width: 640px) { .card.lounge input, .card.lounge button, .card.lounge #loungeStart button[type=submit] { font-size: 16px; } }
 
-/* Default pictures: neutral grey, not a random color */
-.avatar.plain { background: #5d616b; }
+/* Emoji pictures sit on no box at all */
+.avatar.plain, .avatar.emoji { background: transparent !important; box-shadow: none !important; }
