@@ -291,6 +291,7 @@ function present (room, r) {
     Object.assign(out, { fid: r.body.fid, fname: r.body.fname, size: r.body.size, ttl: r.body.ttl, status: slake.fileStatus(r) })
   }
   if (r.kind === 'room') out.title = r.body.title
+  if (r.kind === 'theme') out.theme = r.body.theme
   if (r.kind === 'rekey') {
     // Work out who was left out, by name, for the little gray notice.
     const before = new Set()
@@ -319,6 +320,7 @@ function roomInfo (room) {
     title: room.dm ? dmName : room.title,
     dm: !!room.dm,
     lounge: !!room.lounge,
+    spaceTheme: slake.spaceTheme(room.id),
     peer: room.peer || null,
     onlineKeys: slake.onlineIn(room.id),
     owner: room.owner,
@@ -562,6 +564,8 @@ app.whenReady().then(async () => {
   })
   handle('closeStudio', () => { if (studio && !studio.isDestroyed()) studio.close() })
 
+  handle('setSpaceTheme', ({ room, theme }) => slake.setSpaceTheme(room, theme))
+  handle('themeCss', (name) => themeCSS(name))
   handle('setTheme', (t) => {
     const st = readSettings()
     const recentThemes = [t, ...(st.recentThemes || []).filter((x) => x !== t)].slice(0, 50)

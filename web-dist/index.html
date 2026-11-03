@@ -71,6 +71,25 @@
     </div>
   </section>
 
+  <div id="lookDialog" class="scrim" hidden>
+    <div class="dialog" role="dialog" aria-labelledby="lookTitle">
+      <div id="lookTitle" class="dialog-title">Space look</div>
+      <label for="lookSelect" class="dialog-note">Everyone here starts with this look. People can switch it off in Settings and use their own.</label>
+      <select id="lookSelect"></select>
+      <p class="dialog-note">Only the built-in themes are shared. Themes you made yourself stay yours.</p>
+      <div class="dialog-actions"><button id="lookCancel" class="ghost">Cancel</button><button id="lookSave">Set the look</button></div>
+    </div>
+  </div>
+
+  <div id="settingsDialog" class="scrim" hidden>
+    <div class="dialog" role="dialog" aria-labelledby="settingsTitle">
+      <div id="settingsTitle" class="dialog-title">Settings</div>
+      <label class="check"><input type="checkbox" id="ownThemeBox"> Use my own theme in every space</label>
+      <p class="dialog-note">Spaces can set their own look. Turn this on to always see your theme instead.</p>
+      <div class="dialog-actions"><button id="settingsClose" class="ghost">Done</button></div>
+    </div>
+  </div>
+
   <div id="howDialog" class="scrim" hidden>
     <div class="dialog" role="dialog" aria-labelledby="howTitle">
       <div id="howTitle" class="dialog-title">How it works</div>
@@ -133,6 +152,7 @@
         </form>
         <button id="pickDefault" class="ghost full">Back to the default</button>
         <p class="hint">Everyone in your rooms sees your name and picture.</p>
+        <button id="settingsBtn" class="ghost full" type="button">Settings</button>
         <button id="logoutBtn" class="ghost full" type="button">Exit and Reset Slake on this Device…</button>
       </div>
 

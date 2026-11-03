@@ -418,3 +418,7 @@ button.confirm { color: var(--danger) !important; }
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
 }
 .avatar.plain.sm, .avatar.emoji.sm { border-radius: 8px !important; }
+
+.dialog select { width: 100%; margin: 8px 0 4px; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--text); margin: 6px 0; }
+.check input { width: auto; }

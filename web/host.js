@@ -60,6 +60,7 @@ function present (room, r) {
   if (r.kind === 'profile') out.avatar = r.body.avatar
   if (r.kind === 'file') Object.assign(out, { fid: r.body.fid, fname: r.body.fname, size: r.body.size, ttl: r.body.ttl, status: slake.fileStatus(r) })
   if (r.kind === 'room') out.title = r.body.title
+  if (r.kind === 'theme') out.theme = r.body.theme
   if (r.kind === 'rekey') {
     const before = new Set()
     for (const x of room.records.values()) {
@@ -80,7 +81,7 @@ function roomInfo (room) {
   const mine = room.owner === slake.me.publicKey
   const dmName = room.dm ? (nameIn(room, room.peer) || (mine ? room.title : room.ownerName)) : null
   return {
-    id: room.id, title: room.dm ? dmName : room.title, dm: !!room.dm, lounge: !!room.lounge, peer: room.peer || null,
+    id: room.id, title: room.dm ? dmName : room.title, dm: !!room.dm, lounge: !!room.lounge, spaceTheme: slake.spaceTheme(room.id), peer: room.peer || null,
     onlineKeys: slake.onlineIn(room.id), owner: room.owner, ownerName: room.ownerName, mine,
     removed: room.removed, closedAt: room.closedAt || null, online: slake.online(room.id),
     members: mine && !room.dm ? slake.members(room.id) : null
@@ -299,6 +300,8 @@ window.slake = {
   }),
   menu: (items) => menu(items),
   confirm: async ({ message, detail }) => window.confirm(String(message || '') + (detail ? '\n\n' + detail : '')),
+  setSpaceTheme: api((room, theme) => slake.setSpaceTheme(room, theme)),
+  themeCss: async (name) => themeCSS(name),
   setTheme: async (t) => {
     const st = readSettings()
     writeSettings({ ...st, theme: t, recentThemes: [t, ...(st.recentThemes || []).filter((x) => x !== t)].slice(0, 50) })

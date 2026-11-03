@@ -21,7 +21,7 @@ const { EventEmitter } = require('events')
 const MAX_TEXT = 4000
 const MAX_LINE = 8 * 1024 * 1024
 const MAX_MEMBERS = 256
-const KINDS = new Set(['room', 'join', 'leave', 'msg', 'rekey', 'file', 'profile', 'close'])
+const KINDS = new Set(['room', 'join', 'leave', 'theme', 'msg', 'rekey', 'file', 'profile', 'close'])
 const CLOSE_KEEP = 7 * 24 * 3600 * 1000  // how long a deleted room's note keeps travelling
 const MAX_AVATAR = 60000  // a small photo, as text
 
@@ -63,6 +63,7 @@ function validBody (kind, b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return false
   if (kind === 'room') return typeof b.title === 'string' && b.title.length >= 1 && b.title.length <= 40 && (b.dm === undefined || b.dm === true)
   if (kind === 'join' || kind === 'leave' || kind === 'close') return Object.keys(b).length === 0
+  if (kind === 'theme') return Object.keys(b).length === 1 && typeof b.theme === 'string' && /^[a-z0-9-]{1,40}$/.test(b.theme)
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
   if (kind === 'profile') return validAvatar(b.avatar)
   if (kind === 'file') {
@@ -606,6 +607,21 @@ class Slake extends EventEmitter {
   }
 
   // Take a room off your sidebar. History is renamed aside, not deleted.
+  // The look everyone in a space starts with: the newest "theme" note wins.
+  spaceTheme (roomId) {
+    const room = this.rooms.get(roomId)
+    if (!room || room.dm) return null
+    let best = null
+    for (const r of room.records.values()) if (r.kind === 'theme' && (!best || r.ts > best.ts || (r.ts === best.ts && r.id > best.id))) best = r
+    return best ? best.body.theme : null
+  }
+
+  setSpaceTheme (roomId, theme) {
+    const room = this._room(roomId)
+    if (room.dm || room.removed || room.closedAt) throw new Error("Can't set a look for this space")
+    this._publish(room, this._sign(room, 'theme', room.epoch, { theme: String(theme) }))
+  }
+
   // Drop a "left" note in a room (not in DMs, and not in rooms that are over).
   _bye (room) {
     if (room.dm || room.removed || room.closedAt) return false

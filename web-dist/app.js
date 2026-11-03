@@ -462,6 +462,7 @@ function noteText (rec) {
   if (rec.kind === 'room') return `${rec.name} made this room`
   if (rec.kind === 'join') return `${rec.name} joined`
   if (rec.kind === 'leave') return `${rec.name} left the space`
+  if (rec.kind === 'theme') return `${rec.name} set the space look to ${themeLabel(rec.theme)}`
   if (rec.kind === 'rekey') {
     return rec.removedNames && rec.removedNames.length
       ? `${rec.name} removed ${rec.removedNames.join(', ')}`
@@ -726,6 +727,7 @@ function applyWallpaper () {
 s.onWallpapers((w) => { walls = w; applyWallpaper() })
 
 function renderAll () {
+  showTheme()
   const cr = roomById(current)
   $('leaveBtn').hidden = !(cr && !cr.dm)
   applyWallpaper()
@@ -761,13 +763,14 @@ function roomMenu (r) {
   const bg = { id: 'background', label: 'Background…' }
   if (r.removed || r.closedAt) return [{ id: 'dismiss', label: 'Remove from sidebar' }]
   if (r.dm) return [bg, { type: 'separator' }, { id: 'closeDM', label: 'Close conversation' }]
-  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave space…' }]
+  if (r.lounge) return [{ id: 'link', label: 'Copy link' }, { id: 'look', label: 'Space look…' }, bg, { type: 'separator' }, { id: 'leave', label: 'Leave space…' }]
   return [bg, { type: 'separator' }, { id: 'leave', label: 'Leave space…' }]
 }
 
 async function runRoomChoice (r, choice) {
   if (choice === 'background') s.openStudio({ mode: 'room', room: r.id })
   if (choice === 'link') { await copyText(loungeLink(r.title)); toast('Link copied. Anyone who opens it joins this space.') }
+  if (choice === 'look') openLook(r)
   if (choice === 'leave') await leave(r)
   if (choice === 'closeDM') {
     const ok = await s.confirm({ action: 'Close', message: `Close your conversation with ${r.title}?`, detail: 'It comes off your sidebar here. To talk again, right-click them and choose Message.' })
@@ -870,6 +873,40 @@ $('composer').onsubmit = async (e) => {
   } catch (err) { toast(err.message) }
 }
 
+// ---------- Space look ----------
+// A space can have a look (a built-in theme's name) that everyone starts with.
+// Settings has a switch to always use your own theme instead.
+let myTheme = 'default', myCss = '', shownTheme = null, allThemes = []
+const OWN_KEY = 'slakeOwnTheme'
+const ownThemeAlways = () => { try { return localStorage.getItem(OWN_KEY) === '1' } catch { return false } }
+function setMine (theme, css) { myTheme = theme || 'default'; myCss = css || ''; shownTheme = null; showTheme() }
+async function showTheme () {
+  const r = roomById(current)
+  const want = (!ownThemeAlways() && r && !r.dm && r.spaceTheme) ? r.spaceTheme : myTheme
+  if (want === shownTheme) return
+  shownTheme = want
+  if (want === myTheme) { applyTheme(myCss); return }
+  let css = ''
+  try { css = await s.themeCss(want) } catch {}
+  if (shownTheme !== want) return           // you moved on while it loaded
+  if (!css && want !== 'default') { shownTheme = myTheme; applyTheme(myCss); return }   // you don't have that theme: keep yours
+  applyTheme(css)
+}
+function openLook (r) {
+  const sel = $('lookSelect')
+  sel.textContent = ''
+  for (const t of allThemes) { const o = el('option', null, themeLabel(t)); o.value = t; if (t === (r.spaceTheme || myTheme)) o.selected = true; sel.append(o) }
+  $('lookDialog').dataset.room = r.id
+  $('lookDialog').hidden = false
+}
+$('lookCancel').onclick = () => { $('lookDialog').hidden = true }
+$('lookSave').onclick = async () => {
+  try { await s.setSpaceTheme($('lookDialog').dataset.room, $('lookSelect').value); $('lookDialog').hidden = true; await refresh(); toast('Space look set') } catch (e) { toast(e.message) }
+}
+$('settingsBtn').onclick = () => { $('ownThemeBox').checked = ownThemeAlways(); $('avatarPicker').hidden = true; $('settingsDialog').hidden = false }
+$('settingsClose').onclick = () => { $('settingsDialog').hidden = true }
+$('ownThemeBox').onchange = (e) => { try { localStorage.setItem(OWN_KEY, e.target.checked ? '1' : '0') } catch {} ; shownTheme = null; showTheme() }
+
 // ---------- Themes ----------
 // "default-jade" reads as "Default · Jade", "after-hours" as "After Hours".
 function themeLabel (t) {
@@ -879,6 +916,7 @@ function themeLabel (t) {
 }
 
 function renderThemes (themes, theme) {
+  allThemes = themes.filter((t) => t !== '__studio')
   const sel = $('themeSelect')
   sel.textContent = ''
   for (const t of themes) {
@@ -901,7 +939,7 @@ $('themeSelect').onchange = async (e) => {
     return
   }
   const r = await s.setTheme(t)
-  applyTheme(r.css)
+  setMine(t, r.css)
   renderThemes(r.themes, t)   // the one you just picked moves to the top
 }
 
@@ -1017,6 +1055,7 @@ s.onRecord((r) => {
   records[r.room].push(r)
   records[r.room].sort((a, b) => a.ts - b.ts)
   if (r.kind === 'profile') { rebuildAvatars(); renderAll(); return }
+  if (r.kind === 'theme') { refresh(); return }
   rebuildClashes()
   if (r.room !== current && (r.kind === 'msg' || r.kind === 'file')) unread.add(r.room)
   const fromOthers = (r.kind === 'msg' || r.kind === 'file') && r.author !== me.publicKey && Date.now() - r.ts < 2 * 60 * 1000
@@ -1030,7 +1069,7 @@ s.onRooms((list) => {
   renderSidebar()
   renderHeader()
 })
-s.onTheme(({ themes, theme, css }) => { renderThemes(themes, theme); applyTheme(css) })
+s.onTheme(({ themes, theme, css }) => { renderThemes(themes, theme); setMine(theme, css) })
 s.onOnline((list) => {
   online = new Set(list)
   renderSidebar()
@@ -1052,7 +1091,7 @@ async function refresh () {
   soundOn = st.sound !== false
   rebuildAvatars()
   showVersion(st.version)
-  applyTheme(st.themeCSS)
+  setMine(st.theme, st.themeCSS)
   renderThemes(st.themes, st.theme)
   if (s.web && !loungeMode) {
     if (!me.name) loungeMode = 'start'

@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('slake', {
   menu: (items) => call('menu', items),
   confirm: (opts) => call('confirm', opts),
   setTheme: (t) => call('setTheme', t),
+  setSpaceTheme: (room, theme) => call('setSpaceTheme', { room, theme }),
+  themeCss: (name) => call('themeCss', name),
   onRecord: (fn) => ipcRenderer.on('record', (_e, r) => fn(r)),
   onRooms: (fn) => ipcRenderer.on('rooms', (_e, list) => fn(list)),
   onTheme: (fn) => ipcRenderer.on('theme', (_e, t) => fn(t)),
