@@ -196,6 +196,8 @@ function label (t) {
 function loadTheme (name) {
   const t = init.themes.find((x) => x.name === name)
   cfg = G.parse(t ? t.css : '')
+  const wm = t && /\/\* slake-wallpaper (\{[^*]*?\}) \*\//.exec(t.css)
+  if (wm) { try { wp = JSON.parse(wm[1]); renderWalls() } catch {} }
   const fromStudio = t && /slake-studio/.test(t.css)
   $('themeName').value = fromStudio ? label(name) : ''
   slot = null
@@ -210,9 +212,10 @@ $('save').onclick = async () => {
   const name = $('themeName').value.trim()
   if (!name) { $('themeName').focus(); toast('Give your theme a name'); return }
   try {
-    const slug = await s.saveTheme(name, G.generate(cfg))
-    await s.setWallpaper('default', wp)
-    init.themes = init.themes.filter((t) => t.name !== slug).concat([{ name: slug, css: G.generate(cfg) }])
+    // The background goes with the theme, so picking this theme brings it back.
+    const full = G.generate(cfg) + `\n/* slake-wallpaper ${JSON.stringify(wp)} */\n`
+    const slug = await s.saveTheme(name, full)
+    init.themes = init.themes.filter((t) => t.name !== slug).concat([{ name: slug, css: full }])
     toast(`Saved "${name}". It's on now.`)
   } catch (e) { toast(e.message) }
 }
@@ -253,7 +256,7 @@ $('useDefault').onclick = async () => {
     baseCSS = cur ? cur.css : ''
   } else {
     $('wallTitle').textContent = 'Default background'
-    $('wallHint').textContent = "For every room that doesn't have its own. Rooms with their own background keep it. Saved with your theme."
+    $('wallHint').textContent = "Saved with this theme: pick the theme and the background comes with it. Rooms with their own background keep it."
     wp = { ...init.wallpapers.default }
     sel.value = init.themes.some((t) => t.name === init.current) ? init.current : 'default'
     loadTheme(sel.value)

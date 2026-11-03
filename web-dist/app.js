@@ -119,7 +119,15 @@ function toast (text, ms = 2200) {
   toast.timer = setTimeout(() => { t.hidden = true }, ms)
 }
 
-function applyTheme (css) { $('theme').textContent = css || '' }
+// A theme can carry its own background: /* slake-wallpaper {"id":"dusk","blur":0,"dim":0.35} */
+let themeWall = null
+function applyTheme (css) {
+  $('theme').textContent = css || ''
+  themeWall = null
+  const m = /\/\* slake-wallpaper (\{[^*]*?\}) \*\//.exec(css || '')
+  if (m) { try { themeWall = JSON.parse(m[1]) } catch {} }
+  if (typeof applyWallpaper === 'function') applyWallpaper()
+}
 const roomById = (id) => rooms.find((r) => r.id === id)
 
 // ---------- Lounges ----------
@@ -712,7 +720,7 @@ document.addEventListener('keydown', (e) => {
 // ---------- Wallpaper ----------
 // Each room can have its own background; otherwise it uses your default.
 function applyWallpaper () {
-  const wp = (current && walls.rooms[current]) || walls.default
+  const wp = (current && walls.rooms[current]) || themeWall || walls.default
   window.SlakeWallpapers.paint($('wallLayer'), $('wallDim'), wp)
 }
 s.onWallpapers((w) => { walls = w; applyWallpaper() })
