@@ -756,6 +756,15 @@ async function leave (r) {
   await s.leaveRoom(r.id)
   if (current === r.id) current = null
   await refresh()
+  freshStart()
+}
+
+// On the web, a browser tab keeps one connection identity until it reloads. After
+// leaving a space, a quick reload gives it a clean one, so coming back to the same
+// space can't pick up a half-closed link from before.
+function freshStart () {
+  if (!s.web) return
+  setTimeout(() => { try { location.reload() } catch {} }, 400)
 }
 
 
@@ -774,7 +783,7 @@ async function runRoomChoice (r, choice) {
   if (choice === 'leave') await leave(r)
   if (choice === 'closeDM') {
     const ok = await s.confirm({ action: 'Close', message: `Close your conversation with ${r.title}?`, detail: 'It comes off your sidebar here. To talk again, right-click them and choose Message.' })
-    if (ok) { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }
+    if (ok) { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh(); freshStart() }
   }
   if (choice === 'dismiss') { await s.leaveRoom(r.id); if (current === r.id) current = null; await refresh() }
 }
@@ -851,7 +860,7 @@ document.addEventListener('contextmenu', async (e) => {
 })
 
 $('dismissBtn').onclick = async () => {
-  try { await s.leaveRoom(current); current = null; await refresh() } catch (e) { toast(e.message) }
+  try { await s.leaveRoom(current); current = null; await refresh(); freshStart() } catch (e) { toast(e.message) }
 }
 
 // Send on Enter, new line on Shift+Enter.

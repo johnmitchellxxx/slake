@@ -428,7 +428,9 @@ class Slake extends EventEmitter {
     if (!title) throw new Error('Type a lounge name')
     const norm = Buffer.from(title.toLowerCase().replace(/[\s_-]+/g, ' '))   // "F1 PJ Hang" = "f1-pj-hang"
     const id = nodeCrypto.createHash('sha256').update(Buffer.concat([Buffer.from('slake-lounge-id:'), norm])).digest('hex').slice(0, 32)
-    const there = this.rooms.get(id)
+    let there = this.rooms.get(id)
+    // Rejoining while a leave is still wrapping up: let it finish, then start fresh.
+    if (there && there.leaving) { await there.leaving; there = this.rooms.get(id) }
     if (there) return id
     const room = {
       id, title, owner: hmac(norm, 'slake-lounge-owner').toString('hex'), ownerName: 'the lounge',
@@ -639,16 +641,20 @@ class Slake extends EventEmitter {
   async leaveRoom (roomId, { quiet = false } = {}) {
     const room = this._room(roomId)
     if (room.owner === this.identity.publicKey && !room.dm && !room.closedAt) throw new Error("You own this room, so it stays in your space")
-    if (!quiet && this._bye(room)) await new Promise((resolve) => setTimeout(resolve, 700))
-    if (room.dm && this._pendingDMs().delete(roomId)) this._savePendingDMs()
-    await this._leaveTopics(room)
-    this._unindexKeys(room)
-    this.rooms.delete(roomId)
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    for (const ext of ['.json', '.ndjson']) {
-      const f = path.join(this.roomsDir, roomId + ext)
-      if (fs.existsSync(f)) fs.renameSync(f, path.join(this.roomsDir, `left-${stamp}-${roomId}${ext}.bak`))
-    }
+    let done
+    room.leaving = new Promise((resolve) => { done = resolve })
+    try {
+      if (!quiet && this._bye(room)) await new Promise((resolve) => setTimeout(resolve, 700))
+      if (room.dm && this._pendingDMs().delete(roomId)) this._savePendingDMs()
+      await this._leaveTopics(room)
+      this._unindexKeys(room)
+      this.rooms.delete(roomId)
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      for (const ext of ['.json', '.ndjson']) {
+        const f = path.join(this.roomsDir, roomId + ext)
+        if (fs.existsSync(f)) fs.renameSync(f, path.join(this.roomsDir, `left-${stamp}-${roomId}${ext}.bak`))
+      }
+    } finally { done() }
     this.emit('rooms')
   }
 
