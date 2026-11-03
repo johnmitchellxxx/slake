@@ -57,6 +57,25 @@ class WebSwarm extends EventEmitter {
     super()
     this.relayUrls = relayUrls
     this.rooms = new Map()   // topic hex -> { room, conns: Map(peerId -> conn) }
+    // Phones freeze a page when you switch apps, which silently drops its
+    // connections. When you come back (or the network returns), reconnect.
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+      let hiddenAt = 0
+      const wake = (force) => { this.refresh().catch(() => {}); hiddenAt = 0 }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') hiddenAt = Date.now()
+        else if (hiddenAt && Date.now() - hiddenAt > 15000) wake()
+      })
+      window.addEventListener('online', () => wake())
+      window.addEventListener('pageshow', (e) => { if (e.persisted) wake() })
+    }
+  }
+
+  // Leave and re-join every meeting point, which finds everyone afresh.
+  async refresh () {
+    const topics = [...this.rooms.keys()]
+    for (const hex of topics) await this.leave(Buffer.from(hex, 'hex'))
+    for (const hex of topics) this.join(Buffer.from(hex, 'hex'))
   }
 
   join (topic) {
