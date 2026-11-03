@@ -409,5 +409,12 @@ button.confirm { color: var(--danger) !important; }
 .card.lounge .tagline { font-size: 15px; margin-bottom: 14px; }
 @media (max-width: 640px) { .card.lounge input, .card.lounge button, .card.lounge #loungeStart button[type=submit] { font-size: 16px; } }
 
-/* Emoji pictures sit on no box at all */
-.avatar.plain, .avatar.emoji { background: transparent !important; box-shadow: none !important; }
+/* Emoji pictures: a thin glass bubble */
+.avatar.plain, .avatar.emoji {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 6px rgba(0, 0, 0, 0.25) !important;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.avatar.plain.sm, .avatar.emoji.sm { border-radius: 8px !important; }
