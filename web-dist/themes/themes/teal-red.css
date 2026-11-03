@@ -1,0 +1,23 @@
+/* Teal Red: a soft teal-to-crimson glow behind everything, with a red accent
+   and pale-teal text. The wallpaper comes with the theme. */
+/* slake-wallpaper {"id":"neon-blur","blur":0,"dim":0.15} */
+:root {
+  --bg: #07161b;
+  --panel: rgba(6, 18, 24, 0.55);
+  --panel-2: rgba(10, 26, 33, 0.7);
+  --text: #e4f4f2;
+  --muted: #86bdb9;
+  --accent: #c4342f;
+  --accent-text: #ffffff;
+  --line: rgba(160, 220, 215, 0.14);
+  --radius: 8px;
+  --msg-size: 15px;
+}
+.sidebar { background: rgba(5, 16, 22, 0.55); backdrop-filter: blur(6px); }
+.room-head, .composer { background: rgba(5, 16, 22, 0.35); }
+.wordmark { color: var(--accent); }
+.space li.active { background: var(--accent); color: #fff; }
+.room-title .hash { color: #7fe3dc; }
+.msg .name, .msg b { color: #9fe8e1; }
+.time { color: var(--muted); }
+::selection { background: var(--accent); color: #fff; }

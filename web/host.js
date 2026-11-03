@@ -28,8 +28,8 @@ const listThemes = () => {
   const recent = (readSettings().recentThemes || []).filter((t) => all.includes(t))
   return [...recent, ...all.filter((t) => !recent.includes(t))]
 }
-// Until you pick one yourself, After Hours is the look.
-const curTheme = (s) => (s.theme === undefined ? 'after-hours' : s.theme)
+// Until you pick one yourself, Teal Red is the look on the web.
+const curTheme = (s) => (s.theme === undefined ? 'teal-red' : s.theme)
 const themeCSS = (t) => (t && t !== 'default' && THEMES[t]) || ''
 
 const DEFAULT_WALL = { id: 'none', blur: 0, dim: 0.35 }
