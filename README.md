@@ -99,8 +99,8 @@ commands, and paste your room invite. That's it — no accounts, no sign-up.
 
 ## Files are fleeting
 
-Drag a file onto a room (or click **+**), pick how long it lasts (**1 hour,
-1 day or 1 week**), and send. It goes straight from your computer to the
+Drag a file onto a room (or click **+**), send it (it lasts **1 day**,
+then disappears). It goes straight from your computer to the
 others in the room. There's no upload, no server, and no size limit.
 Files up to 50 MB download by themselves; bigger ones have a **Download**
 button. Save what you want to keep.
