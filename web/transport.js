@@ -35,11 +35,24 @@ class WebConn extends EventEmitter {
     const basis = a && b ? [a, b].sort().join('\n') : 'unverified ' + Math.random()
     this.handshakeHash = Buffer.from(sha256(Buffer.from('slake-webrtc-v1\n' + basis)))
     this.closed = false
+    this.pending = 0
+    this.full = false
   }
 
+  // Send, and say "wait" (false) while too much is still in flight, so a
+  // big file can't be flooded into the connection faster than it can carry it.
   write (line) {
     if (this.closed) return true
-    this._send(String(line), this.peerId).catch(() => {})
+    this.pending++
+    // One at a time, in order: sent side by side, a short message can land
+    // ahead of the longer one before it.
+    const text = String(line)
+    this.tail = (this.tail || Promise.resolve()).then(() => this._send(text, this.peerId)).catch(() => {})
+    this.tail.then(() => {
+      this.pending--
+      if (this.full && this.pending <= 2) { this.full = false; this.emit('drain') }
+    })
+    if (this.pending > 6) { this.full = true; return false }
     return true
   }
 

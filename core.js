@@ -930,20 +930,28 @@ class Slake extends EventEmitter {
     if (!room || this._expired(t.rec)) { this._dropTransfer(t.rec.body.fid); return }
     const part = this._filePath(t.rec.body.fid) + '.part'
     t.bytes = fs.existsSync(part) ? fs.statSync(part).size : 0
+    let someone = false
     for (const p of this.peers) {
-      if (t.tried.has(p) || !p.proven.has(room.id) || p.proven.get(room.id) < t.rec.epoch) continue
+      if (!p.proven.has(room.id) || p.proven.get(room.id) < t.rec.epoch) continue
+      someone = true
+      if (t.tried.has(p)) continue
       t.tried.add(p)
       t.peer = p
       this._send(p, { type: 'want', room: room.id, fid: t.rec.body.fid, off: t.bytes })
       this._stall(t)
       break
     }
+    // Everyone we asked went quiet, but they're still here: ask again from
+    // where we got to, rather than giving up for good.
+    if (!t.peer && someone) {
+      t.timer = setTimeout(() => { t.tried.clear(); this._nextSource(t) }, 3000)
+    }
     this.emit('file', t.room, t.rec.body.fid)
   }
 
-  _stall (t) {
+  _stall (t, ms = 10000) {
     clearTimeout(t.timer)
-    t.timer = setTimeout(() => this._nextSource(t), 20000)
+    t.timer = setTimeout(() => { t.tried.clear(); this._nextSource(t) }, ms)
   }
 
   _dropTransfer (fid) {
@@ -962,7 +970,10 @@ class Slake extends EventEmitter {
       return
     }
     if (off === rec.body.size) { this._send(peer, { type: 'chunk', room: room.id, fid, off, d: '' }); return }
+    // A fresh ask for the same file replaces any earlier one still running.
+    for (const old of [...peer.streams]) if (old.fid === fid) { old.destroy(); peer.streams.delete(old) }
     const rs = fs.createReadStream(p, { start: off, highWaterMark: CHUNK })
+    rs.fid = fid
     peer.streams.add(rs)
     let pos = off
     rs.on('data', (d) => {
@@ -981,7 +992,12 @@ class Slake extends EventEmitter {
     const t = this.transfers.get(fid)
     if (!t || t.peer !== peer || t.room !== room.id) return
     if (msg.type === 'nofile') { this._nextSource(t); return }
-    if (Number(msg.off) !== t.bytes || typeof msg.d !== 'string') return
+    if (typeof msg.d !== 'string') return
+    if (Number(msg.off) !== t.bytes) {
+      // Something went missing: ask again from where we are, soon.
+      if (Number(msg.off) > t.bytes) this._stall(t, 2000)
+      return
+    }
     const data = Buffer.from(msg.d, 'base64')
     if (t.bytes + data.length > t.rec.body.size) { this._badFile(t); return }
     const part = this._filePath(fid) + '.part'
