@@ -99,6 +99,7 @@ class WebSwarm extends EventEmitter {
       if (this.relayUrls) config.relayUrls = this.relayUrls
       if (this.turnConfig && this.turnConfig.length) config.turnConfig = this.turnConfig
       const room = joinRoom(config, hex)
+      this._watch()
       const [send, get] = room.makeAction('line')
       const entry = { room, conns: new Map(), early: new Map() }
       this.rooms.set(hex, entry)
@@ -142,6 +143,29 @@ class WebSwarm extends EventEmitter {
     try { await entry.room.leave() } catch {}
   }
 
+  // Quietly count what each introduction server says back, for the report.
+  _watch () {
+    this.stats = this.stats || {}
+    const attach = () => {
+      let socks = {}
+      try { socks = getRelaySockets() || {} } catch {}
+      for (const [u, ws] of Object.entries(socks)) {
+        if (ws.__watched || !ws.addEventListener) continue
+        ws.__watched = true
+        const st = this.stats[u] = this.stats[u] || { ev: 0, ok: 0, no: 0, why: '' }
+        ws.addEventListener('message', (m) => {
+          try {
+            const d = JSON.parse(m.data)
+            if (d[0] === 'EVENT') st.ev++
+            else if (d[0] === 'OK') { if (d[2]) st.ok++; else { st.no++; st.why = String(d[3] || '').slice(0, 40) } }
+            else if (d[0] === 'NOTICE') st.why = String(d[1] || '').slice(0, 40)
+          } catch {}
+        })
+      }
+    }
+    attach(); setTimeout(attach, 1500); setTimeout(attach, 6000); setTimeout(attach, 15000)
+  }
+
   // A plain-words status report, for working out why two devices can't meet.
   diag () {
     const L = []
@@ -152,7 +176,7 @@ class WebSwarm extends EventEmitter {
     const names = ['connecting', 'open', 'closing', 'closed']
     const urls = Object.keys(socks)
     L.push(`Introduction servers: ${urls.filter((u) => socks[u].readyState === 1).length} of ${urls.length} answering`)
-    for (const u of urls) L.push(`  ${u.replace('wss://', '')}: ${names[socks[u].readyState]}`)
+    for (const u of urls) { const t = (this.stats || {})[u] || {}; L.push(`  ${u.replace('wss://', '')}: ${names[socks[u].readyState]}  got ${t.ev || 0}, took ${t.ok || 0}, refused ${t.no || 0}${t.why ? ' (' + t.why + ')' : ''}`) }
     L.push(`Spaces joined: ${this.rooms.size}`)
     for (const [hex, e] of this.rooms) {
       let peers = {}
