@@ -287,6 +287,7 @@ function present (room, r) {
   const out = { id: r.id, room: r.room, kind: r.kind, author: r.author, name: r.name, ts: r.ts }
   if (r.kind === 'msg') out.text = r.body.text
   if (r.kind === 'profile') out.avatar = r.body.avatar
+  if (r.kind === 'react') Object.assign(out, { to: r.body.to, emoji: r.body.emoji, on: r.body.on })
   if (r.kind === 'file') {
     Object.assign(out, { fid: r.body.fid, fname: r.body.fname, size: r.body.size, ttl: r.body.ttl, status: slake.fileStatus(r) })
   }
@@ -466,6 +467,7 @@ app.whenReady().then(async () => {
   handle('createRoom', (title) => slake.createRoom(title, { waitForNetwork: false }))
   handle('joinRoom', (inv) => slake.joinRoom(inv, { waitForNetwork: false }))
   handle('post', ({ room, text }) => { slake.post(room, text) })
+  handle('react', ({ room, to, emoji, on }) => { slake.react(room, to, emoji, on) })
   handle('copyInvite', (room) => clipboard.writeText(slake.invite(room)))
   handle('messagePerson', ({ key, name }) => slake.messagePerson(key, name))
   handle('joinLounge', (name) => slake.joinLounge(name, { waitForNetwork: false }))

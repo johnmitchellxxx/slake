@@ -480,17 +480,94 @@ function noteText (rec) {
   return ''
 }
 
+// ---------- Emoji reactions ----------
+const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉']
+
+// Who has reacted to what. Each person's latest word on an emoji wins, so
+// tapping again takes it back.
+function reactionMap (list) {
+  const latest = new Map()   // target|emoji|author -> record
+  for (const r of list) {
+    if (r.kind !== 'react') continue
+    const k = r.to + '|' + r.emoji + '|' + r.author
+    const o = latest.get(k)
+    if (!o || r.ts > o.ts || (r.ts === o.ts && r.id > o.id)) latest.set(k, r)
+  }
+  const out = new Map()      // target -> Map(emoji -> { names, mine })
+  for (const r of latest.values()) {
+    if (!r.on) continue
+    if (!out.has(r.to)) out.set(r.to, new Map())
+    const m = out.get(r.to)
+    if (!m.has(r.emoji)) m.set(r.emoji, { names: [], mine: false })
+    const e = m.get(r.emoji)
+    e.names.push(r.author === me.publicKey ? 'you' : r.name)
+    if (r.author === me.publicKey) e.mine = true
+  }
+  return out
+}
+
+function sendReaction (m, emoji, on) {
+  s.react(m.room, m.id, emoji, on).catch(() => {})
+}
+
+function reactionsEl (m, reacts) {
+  const rm = roomById(current)
+  const open = rm && !rm.removed && !rm.closedAt
+  const mine = reacts.get(m.id)
+  if (!mine && !open) return null
+  const row = el('div', 'reacts')
+  if (mine) {
+    for (const [emoji, e] of mine) {
+      const chip = el('button', 'react' + (e.mine ? ' mine' : ''))
+      chip.type = 'button'
+      chip.append(el('span', 'em', emoji), el('span', 'ct', String(e.names.length)))
+      chip.title = e.names.join(', ')
+      if (open) chip.onclick = () => sendReaction(m, emoji, !e.mine)
+      row.append(chip)
+    }
+  }
+  if (open) {
+    const add = el('button', 'react add', '☺')
+    add.type = 'button'
+    add.title = 'Add a reaction'
+    add.setAttribute('aria-label', 'Add a reaction')
+    add.onclick = (ev) => { ev.stopPropagation(); reactPicker(add, m, mine) }
+    row.append(add)
+  }
+  return row
+}
+
+function reactPicker (anchor, m, mine) {
+  document.querySelectorAll('.react-pop').forEach((n) => n.remove())
+  const pop = el('div', 'react-pop')
+  for (const emoji of QUICK) {
+    const b = el('button', 'pick', emoji)
+    b.type = 'button'
+    b.onclick = () => { pop.remove(); sendReaction(m, emoji, !(mine && mine.get(emoji) && mine.get(emoji).mine)) }
+    pop.append(b)
+  }
+  document.body.append(pop)
+  const a = anchor.getBoundingClientRect()
+  const w = pop.offsetWidth
+  pop.style.left = Math.max(8, Math.min(a.left, window.innerWidth - w - 8)) + 'px'
+  const above = a.top > pop.offsetHeight + 12
+  pop.style.top = (above ? a.top - pop.offsetHeight - 6 : a.bottom + 6) + 'px'
+  const close = (e) => { if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener('pointerdown', close, true) } }
+  setTimeout(() => document.addEventListener('pointerdown', close, true), 0)
+}
+
 function renderMessages () {
   const box = $('messages')
   if (!current) return
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80
   box.textContent = ''
   const list = records[current] || []
+  const reacts = reactionMap(list)
   let prev = null
   let prevDay = null
   const inDM = !!(roomById(current) || {}).dm
   for (const m of list) {
-    if (m.kind === 'profile') continue
+    if (m.kind === 'profile' || m.kind === 'react') continue
     if (inDM && (m.kind === 'room' || m.kind === 'join' || m.kind === 'leave')) continue
     if (fmtDay(m.ts) !== prevDay) {
       box.append(el('div', 'day', fmtDay(m.ts)))
@@ -524,6 +601,8 @@ function renderMessages () {
     if (m.kind === 'file') body.append(fileCard(m))
     else fillBody(body, m.text)
     row.append(av, meta, body)
+    const rx = reactionsEl(m, reacts)
+    if (rx) row.append(rx)
     box.append(row)
     prev = m
   }

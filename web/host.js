@@ -88,6 +88,7 @@ function present (room, r) {
   const out = { id: r.id, room: r.room, kind: r.kind, author: r.author, name: r.name, ts: r.ts }
   if (r.kind === 'msg') out.text = r.body.text
   if (r.kind === 'profile') out.avatar = r.body.avatar
+  if (r.kind === 'react') Object.assign(out, { to: r.body.to, emoji: r.body.emoji, on: r.body.on })
   if (r.kind === 'file') Object.assign(out, { fid: r.body.fid, fname: r.body.fname, size: r.body.size, ttl: r.body.ttl, status: slake.fileStatus(r) })
   if (r.kind === 'room') out.title = r.body.title
   if (r.kind === 'theme') out.theme = r.body.theme
@@ -335,6 +336,7 @@ window.slake = {
   createRoom: api((title) => slake.createRoom(title, { waitForNetwork: false })),
   joinRoom: api((inv) => slake.joinRoom(inv, { waitForNetwork: false })),
   post: api((room, text) => { slake.post(room, text) }),
+  react: api((room, to, emoji, on) => { slake.react(room, to, emoji, on) }),
   copyInvite: api((room) => copy(slake.invite(room))),
   inviteText: api((room) => slake.invite(room)),
   readInvite: (str) => parseInvite(str),

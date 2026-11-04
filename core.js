@@ -21,7 +21,7 @@ const { EventEmitter } = require('events')
 const MAX_TEXT = 4000
 const MAX_LINE = 8 * 1024 * 1024
 const MAX_MEMBERS = 256
-const KINDS = new Set(['room', 'join', 'leave', 'theme', 'msg', 'rekey', 'file', 'profile', 'close'])
+const KINDS = new Set(['room', 'join', 'leave', 'theme', 'msg', 'rekey', 'file', 'profile', 'close', 'react'])
 const CLOSE_KEEP = 7 * 24 * 3600 * 1000  // how long a deleted room's note keeps travelling
 const MAX_AVATAR = 60000  // a small photo, as text
 
@@ -66,6 +66,10 @@ function validBody (kind, b) {
   if (kind === 'theme') return Object.keys(b).length === 1 && typeof b.theme === 'string' && /^[a-z0-9-]{1,40}$/.test(b.theme)
   if (kind === 'msg') return typeof b.text === 'string' && b.text.length >= 1 && b.text.length <= MAX_TEXT
   if (kind === 'profile') return validAvatar(b.avatar)
+  if (kind === 'react') {
+    return Object.keys(b).length === 3 && typeof b.to === 'string' && KEY_RE.test(b.to) && typeof b.on === 'boolean' &&
+      typeof b.emoji === 'string' && b.emoji.length >= 1 && b.emoji.length <= 16 && !/[<>\s]/.test(b.emoji)
+  }
   if (kind === 'file') {
     return typeof b.fid === 'string' && KEY_RE.test(b.fid) &&
       typeof b.fname === 'string' && b.fname.length >= 1 && b.fname.length <= 200 && !/[\\/\0]/.test(b.fname) &&
@@ -464,6 +468,21 @@ class Slake extends EventEmitter {
     text = String(text || '').trim()
     if (!text || text.length > MAX_TEXT) throw new Error('Message empty or too long')
     const r = this._sign(room, 'msg', room.epoch, { text })
+    this._publish(room, r)
+    return r
+  }
+
+  // React to a message or file with an emoji (on), or take your reaction back (off).
+  react (roomId, targetId, emoji, on = true) {
+    this._needName()
+    const room = this._room(roomId)
+    if (room.removed) throw new Error("You're no longer in this room")
+    if (room.closedAt) throw new Error('This room was deleted')
+    const t = room.records.get(targetId)
+    if (!t || (t.kind !== 'msg' && t.kind !== 'file')) throw new Error("That isn't something you can react to")
+    emoji = String(emoji || '').trim()
+    if (!emoji || emoji.length > 16 || /[<>\s]/.test(emoji)) throw new Error('That emoji will not work')
+    const r = this._sign(room, 'react', room.epoch, { to: targetId, emoji, on: !!on })
     this._publish(room, r)
     return r
   }

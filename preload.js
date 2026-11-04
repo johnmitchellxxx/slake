@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('slake', {
   createRoom: (title) => call('createRoom', title),
   joinRoom: (invite) => call('joinRoom', invite),
   post: (room, text) => call('post', { room, text }),
+  react: (room, to, emoji, on) => call('react', { room, to, emoji, on }),
   copyInvite: (room) => call('copyInvite', room),
   messagePerson: (key, name) => call('messagePerson', { key, name }),
   onOnline: (fn) => ipcRenderer.on('online', (_e, list) => fn(list)),
