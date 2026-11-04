@@ -243,7 +243,7 @@ function menu (items) {
   })
 }
 const lastPointer = { x: 0, y: 0 }
-document.addEventListener('contextmenu', (e) => { lastPointer.x = e.clientX; lastPointer.y = e.clientY }, true)
+for (const ev of ['contextmenu', 'pointerdown']) document.addEventListener(ev, (e) => { lastPointer.x = e.clientX; lastPointer.y = e.clientY }, true)
 
 // Phones have no right-click: press and hold instead.
 let hold = null

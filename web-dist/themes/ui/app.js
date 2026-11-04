@@ -636,7 +636,16 @@ function choose (info) {
   showPending()
 }
 
-$('attachBtn').onclick = async () => { try { choose(await s.pickFile()) } catch (e) { toast(e.message) } }
+$('attachBtn').onclick = async () => {
+  const r = roomById(current)
+  const items = [{ id: 'file', label: 'Send a file…' }]
+  if (r && r.lounge) items.push({ id: 'invite', label: 'Invite someone (copy link)' })
+  try {
+    const choice = items.length > 1 ? await s.menu(items) : 'file'
+    if (choice === 'file') choose(await s.pickFile())
+    else if (choice === 'invite') await runRoomChoice(r, 'link')
+  } catch (e) { toast(e.message) }
+}
 for (const b of $('pending').querySelectorAll('[data-ttl]')) {
   b.onclick = () => { pending.ttl = Number(b.dataset.ttl); showPending() }
 }
