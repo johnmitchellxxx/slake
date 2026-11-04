@@ -359,10 +359,15 @@ function renderSidebar () {
   lounges.append(lul)
   const lform = el('form', 'new-room')
   const linput = el('input')
-  linput.placeholder = '+ join a space'
+  linput.placeholder = '+ make or join a space'
   linput.maxLength = 40
   linput.autocomplete = 'off'
-  lform.append(linput)
+  linput.enterKeyHint = 'go'
+  const lgo = el('button', 'lgo', 'Go')
+  lgo.type = 'submit'
+  lgo.hidden = true
+  linput.oninput = () => { lgo.hidden = !linput.value.trim() }
+  lform.append(linput, lgo)
   lform.onsubmit = async (e) => {
     e.preventDefault()
     const v = linput.value.trim()
@@ -524,7 +529,7 @@ function renderMessages () {
       box.append(el('p', 'empty', r.dm
         ? (online.has(r.peer) ? `Say hi to ${r.title}.` : `${r.title} gets this conversation the next time you're both online.`)
         : r.lounge
-        ? `Nothing here yet. Anyone who types "${r.title}" joins this space. Right-click it to copy the link.`
+        ? `Nothing here yet. Anyone who types "${r.title}" joins this space. Press and hold (or right-click) its name to copy the link.`
         : list.length ? 'Nothing here yet. Say something.' : 'Waiting for someone in this room to come online…'))
     }
   }
