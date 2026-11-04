@@ -41,7 +41,7 @@ const params = new URLSearchParams(location.search)
 // The free public "introduction servers" two devices use to find each other.
 // Several are flaky or dead, so we use plenty; two devices only need ONE
 // working server in common.
-const INTRO = ['nos.lol', 'relay.damus.io', 'relay.fountain.fm', 'yabu.me/v2', 'black.nostrcity.club', 'relay.nostromo.social', 'nostr.data.haus', 'relay.oldenburg.cool', 'relay.mostro.network', 'relay.nostrdice.com', 'relay.binaryrobot.com', 'nostr.sathoarder.com'].map((u) => 'wss://' + u)
+const INTRO = ['wss://slake-intro.xjohnmitchell.workers.dev'].concat(['nos.lol', 'yabu.me/v2', 'nostr.data.haus', 'relay.mostro.network', 'nostr.sathoarder.com', 'relay.fountain.fm'].map((u) => 'wss://' + u))
 const relayUrls = params.get('relays') ? params.get('relays').split(',') : INTRO
 
 // The backup route for devices that can't connect directly. A tiny helper on
