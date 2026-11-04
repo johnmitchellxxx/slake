@@ -422,12 +422,14 @@ function openRoom (id) {
 const phone = () => window.matchMedia('(max-width: 640px)').matches
 $('backBtn').onclick = () => { document.body.classList.remove('in-room'); $('avatarPicker').hidden = true }
 
+const pageStart = Date.now()
 function renderHeader () {
   const r = roomById(current)
   $('noRoom').hidden = !!r
   $('roomView').hidden = !r
   if (!r) { document.body.classList.remove('in-room'); return }
   $('roomName').textContent = plain(r)
+  if (!renderHeader.later && Date.now() - pageStart < 20000) renderHeader.later = setTimeout(() => { renderHeader.later = null; renderHeader() }, 20500 - (Date.now() - pageStart))
   document.querySelector('.room-head .hash').hidden = r.dm
   if (r.dm) {
     $('roomSub').textContent = online.has(r.peer) ? 'Direct message · online now' : 'Direct message · offline'
@@ -435,7 +437,7 @@ function renderHeader () {
     const where = 'Space'
     const names = (r.onlineKeys || []).map(nameOf)
     const who = r.closedAt ? 'deleted' : r.removed ? 'removed'
-      : !names.length ? 'nobody else online'
+      : !names.length ? (Date.now() - pageStart < 20000 ? 'connecting to others…' : 'nobody else online')
         : names.length <= 3 ? `${names.join(', ')} online`
           : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more online`
     $('roomSub').textContent = `${where} · ${who}`

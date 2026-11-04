@@ -40,13 +40,29 @@ let slake = null
 const params = new URLSearchParams(location.search)
 const relayUrls = params.get('relays') ? params.get('relays').split(',') : undefined
 
+// The backup route for devices that can't connect directly. A tiny helper on
+// Cloudflare hands out short-lived relay passwords; if it isn't set up (or is
+// slow), Slake just carries on without it.
+async function loadRelay () {
+  try {
+    const cfg = await (await fetch('relay.json', { cache: 'no-cache' })).json()
+    if (!cfg || !cfg.url) return []
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), 3000)
+    const data = await (await fetch(cfg.url, { signal: ctl.signal })).json()
+    clearTimeout(timer)
+    return (data.iceServers || []).filter((s) => s.credential)
+  } catch { return [] }
+}
+
 const ready = (async () => {
   let bundled = {}
   try { bundled = await (await fetch('themes.json')).json() } catch {}
   BUNDLED = Object.keys(bundled)
   THEMES = { ...bundled, ...myThemes() }
   await fs.load()
-  slake = new Slake({ dataDir: DATA, makeSwarm: () => new WebSwarm({ relayUrls }) })
+  const turnConfig = await loadRelay()
+  slake = new Slake({ dataDir: DATA, makeSwarm: () => new WebSwarm({ relayUrls, turnConfig }) })
   await slake.start()
   if (params.has('debug')) window.__slakeEngine = slake
   wire()

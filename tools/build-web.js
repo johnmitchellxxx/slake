@@ -81,7 +81,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.sla
   // Browsers need to reach the public meeting relays (wss:) and run the
   // password hash (WebAssembly).
   html = html.replace(/<meta http-equiv="Content-Security-Policy" content="[^"]*">/,
-    `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws: https://api.github.com; script-src 'self' 'wasm-unsafe-eval'">`)
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws: https://api.github.com https://*.workers.dev; script-src 'self' 'wasm-unsafe-eval'">`)
   html = html.replace('<head>', `<head>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#16161d">
@@ -102,6 +102,9 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.sla
     themes[f.slice(0, -4)] = fs.readFileSync(path.join(root, 'themes', f), 'utf8')
   }
   fs.writeFileSync(path.join(out, 'themes.json'), JSON.stringify(themes))
+  // Where the relay helper lives (written once it's set up; empty until then).
+  const relayFile = path.join(root, 'worker', 'relay.json')
+  fs.writeFileSync(path.join(out, 'relay.json'), fs.existsSync(relayFile) ? fs.readFileSync(relayFile) : '{}')
 
   // Home-screen icon and app details, and the offline helper.
   const icon = path.join(root, 'build', 'icon.png')

@@ -66,9 +66,10 @@ class WebConn extends EventEmitter {
 }
 
 class WebSwarm extends EventEmitter {
-  constructor ({ relayUrls } = {}) {
+  constructor ({ relayUrls, turnConfig } = {}) {
     super()
     this.relayUrls = relayUrls
+    this.turnConfig = turnConfig
     this.rooms = new Map()   // topic hex -> { room, conns: Map(peerId -> conn) }
     // Phones freeze a page when you switch apps, which silently drops its
     // connections. When you come back (or the network returns), reconnect.
@@ -96,6 +97,7 @@ class WebSwarm extends EventEmitter {
     if (!this.rooms.has(hex)) {
       const config = { appId: APP_ID, password: hex }
       if (this.relayUrls) config.relayUrls = this.relayUrls
+      if (this.turnConfig && this.turnConfig.length) config.turnConfig = this.turnConfig
       const room = joinRoom(config, hex)
       const [send, get] = room.makeAction('line')
       const entry = { room, conns: new Map(), early: new Map() }
