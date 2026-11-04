@@ -100,7 +100,46 @@ function state () {
 
 let unread = 0
 const baseTitle = document.title
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { unread = 0; document.title = baseTitle } })
+// While a tab is in the background and something new arrives, the tab title
+// flips between the count and who wrote, and the tab icon gets a red dot.
+let flashTimer = null, flashWho = '', flashOn = false
+let iconNormal = null, iconDot = null
+const iconLink = () => document.querySelector('link[rel="icon"]')
+function makeDotIcon () {
+  const link = iconLink()
+  if (!link || iconDot) return
+  iconNormal = link.href
+  const img = new Image()
+  img.onload = () => {
+    try {
+      const c = document.createElement('canvas')
+      c.width = c.height = 64
+      const x = c.getContext('2d')
+      x.drawImage(img, 0, 0, 64, 64)
+      x.beginPath(); x.arc(47, 17, 14, 0, Math.PI * 2); x.fillStyle = '#ff3b30'; x.fill()
+      x.lineWidth = 4; x.strokeStyle = '#fff'; x.stroke()
+      iconDot = c.toDataURL('image/png')
+    } catch {}
+  }
+  img.src = link.href
+}
+function flash (who) {
+  flashWho = who || flashWho
+  makeDotIcon()
+  if (flashTimer) return
+  flashTimer = setInterval(() => {
+    flashOn = !flashOn
+    document.title = flashOn ? `💬 ${flashWho || 'New message'}` : `(${unread}) ${baseTitle}`
+    const link = iconLink()
+    if (link && iconDot) link.href = flashOn ? iconDot : iconNormal
+  }, 1000)
+}
+function unflash () {
+  clearInterval(flashTimer); flashTimer = null; flashOn = false
+  const link = iconLink()
+  if (link && iconNormal) link.href = iconNormal
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { unread = 0; document.title = baseTitle; unflash() } })
 
 function wire () {
   slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]) })
@@ -119,6 +158,7 @@ function wire () {
     if (fromOthers && Date.now() - r.ts < 10 * 60 * 1000 && document.hidden) {
       unread++
       document.title = `(${unread}) ${baseTitle}`
+      flash(r.name)
     }
   })
   setInterval(() => send('rooms', rooms()), 10 * 60 * 1000)
