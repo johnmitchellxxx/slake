@@ -134,6 +134,8 @@ const roomById = (id) => rooms.find((r) => r.id === id)
 // A lounge's name is its code: type the same name and you land in the same
 // room. A link is the site address with the name after a # (spaces become -).
 const SITE = s.web ? location.origin + location.pathname : 'https://slake.pantheon.live/'
+// A space typed as "#Name" shows without the extra #, since we add one ourselves.
+const plain = (r) => (r.lounge ? String(r.title).replace(/^#+\s*/, '') || r.title : r.title)
 const loungeLink = (title) => `${SITE}#${encodeURIComponent(title.trim().replace(/\s+/g, '-'))}`
 
 let loungeFromLink = null  // a lounge name from the link
@@ -331,7 +333,7 @@ $('nameForm').onsubmit = async (e) => {
 // ---------- Sidebar ----------
 function roomItem (r) {
   const li = el('li')
-  li.append(el('span', null, '# ' + r.title))
+  li.append(el('span', null, '# ' + plain(r)))
   if (r.id === current) li.classList.add('active')
   else if (unread.has(r.id)) { li.classList.add('unread'); li.append(el('span', 'dot')) }
   if (r.removed || r.closedAt) li.classList.add('gone')
@@ -425,7 +427,7 @@ function renderHeader () {
   $('noRoom').hidden = !!r
   $('roomView').hidden = !r
   if (!r) { document.body.classList.remove('in-room'); return }
-  $('roomName').textContent = r.title
+  $('roomName').textContent = plain(r)
   document.querySelector('.room-head .hash').hidden = r.dm
   if (r.dm) {
     $('roomSub').textContent = online.has(r.peer) ? 'Direct message · online now' : 'Direct message · offline'
@@ -444,7 +446,7 @@ function renderHeader () {
     ? `This room was deleted by ${r.ownerName}. It leaves your sidebar ${fmtLeftUntil(r.closedAt + 24 * 3600 * 1000)}.`
     : "You're no longer in this room. You can still read what was said before."
   $('composer').classList.toggle('disabled', gone)
-  $('text').placeholder = gone ? '' : r.dm ? `Message ${r.title}` : `Message #${r.title}`
+  $('text').placeholder = gone ? '' : r.dm ? `Message ${r.title}` : `Message #${plain(r)}`
 }
 
 
@@ -731,8 +733,8 @@ function renderResults () {
   for (const { r, m, text } of hits.slice(0, 200)) {
     const row = el('div', 'result')
     const where = m.kind === 'file'
-      ? `#${r.title} · ${m.name} sent a file · ${fmtDate(m.ts)}${isGone(m) ? ' · disappeared' : ''}`
-      : `#${r.title} · ${m.name} · ${fmtDate(m.ts)}`
+      ? `#${plain(r)} · ${m.name} sent a file · ${fmtDate(m.ts)}${isGone(m) ? ' · disappeared' : ''}`
+      : `#${plain(r)} · ${m.name} · ${fmtDate(m.ts)}`
     row.append(el('div', 'result-where', where))
     const t = el('div', 'result-text')
     highlight(t, (m.kind === 'file' ? '📄 ' : '') + text, q)
@@ -789,7 +791,7 @@ function fmtLeftUntil (ts) {
 }
 
 async function leave (r) {
-  const ok = await s.confirm({ action: 'Leave', message: `Are you sure you want to leave #${r.title}?`, detail: 'If everyone has left, this erases the space. To come back, type its name again.' })
+  const ok = await s.confirm({ action: 'Leave', message: `Are you sure you want to leave #${plain(r)}?`, detail: 'If everyone has left, this erases the space. To come back, type its name again.' })
   if (!ok) return
   await s.leaveRoom(r.id)
   if (current === r.id) current = null
