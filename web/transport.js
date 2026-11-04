@@ -13,7 +13,7 @@
 const { EventEmitter } = require('events')
 const { Buffer } = require('buffer')
 const { sha256 } = require('@noble/hashes/sha2')
-const { joinRoom, selfId } = require('trystero/nostr')
+const { joinRoom, selfId, getRelaySockets } = require('trystero/nostr')
 
 const APP_ID = 'slake-v1'
 
@@ -140,6 +140,28 @@ class WebSwarm extends EventEmitter {
     this.rooms.delete(hex)
     for (const c of entry.conns.values()) c.destroy()
     try { await entry.room.leave() } catch {}
+  }
+
+  // A plain-words status report, for working out why two devices can't meet.
+  diag () {
+    const L = []
+    const tc = this.turnConfig || []
+    L.push(tc.length ? `Relay passwords: loaded (${tc.length} sets)` : 'Relay passwords: NOT loaded')
+    let socks = {}
+    try { socks = getRelaySockets() || {} } catch {}
+    const names = ['connecting', 'open', 'closing', 'closed']
+    const urls = Object.keys(socks)
+    L.push(`Introduction servers: ${urls.filter((u) => socks[u].readyState === 1).length} of ${urls.length} answering`)
+    for (const u of urls) L.push(`  ${u.replace('wss://', '')}: ${names[socks[u].readyState]}`)
+    L.push(`Spaces joined: ${this.rooms.size}`)
+    for (const [hex, e] of this.rooms) {
+      let peers = {}
+      try { peers = e.room.getPeers() } catch {}
+      const ids = Object.keys(peers)
+      L.push(`Space ${hex.slice(0, 6)}: ${ids.length} other device(s) found, ${e.conns.size} connected`)
+      for (const id of ids) L.push(`  ${id.slice(0, 6)}: ${peers[id].iceConnectionState || peers[id].connectionState || '?'}`)
+    }
+    return L.join('\n')
   }
 
   async destroy () {

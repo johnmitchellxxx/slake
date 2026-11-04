@@ -65,6 +65,16 @@ const ready = (async () => {
   slake = new Slake({ dataDir: DATA, makeSwarm: () => new WebSwarm({ relayUrls, turnConfig }) })
   await slake.start()
   if (params.has('debug')) window.__slakeEngine = slake
+  // Tap the version number for a connection report.
+  const vl = document.getElementById('versionLine')
+  if (vl) vl.addEventListener('click', () => {
+    const d = document.createElement('div')
+    d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);color:#fff;padding:20px;overflow:auto;font:14px/1.5 monospace;white-space:pre-wrap'
+    const sw = slake && slake.swarm
+    d.textContent = (sw && sw.diag ? sw.diag() : 'not started') + '\n\n(tap anywhere to close)'
+    d.onclick = () => d.remove()
+    document.body.append(d)
+  })
   wire()
 })()
 ready.catch((e) => console.error('Slake failed to start', e))
