@@ -281,12 +281,26 @@ window.slake = {
   sendFile: api(async (room, token, ttl) => {
     const f = picked.get(token)
     if (!f) throw new Error("Couldn't read that file")
-    const tmp = DATA + '/uploads/' + token.replace(/\W/g, '') + '-' + f.name.replace(/[\\/]/g, '_')
-    fs.mkdirSync(DATA + '/uploads')
+    const dir = DATA + '/uploads/' + token.replace(/\W/g, '')
+    const tmp = dir + '/' + f.name.replace(/[\\/]/g, '_')
+    fs.mkdirSync(dir)
     fs.writeFileSync(tmp, Buffer.from(await f.arrayBuffer()))
     try { await slake.sendFile(room, tmp, ttl) } finally { try { fs.unlinkSync(tmp) } catch {} picked.delete(token) }
   }),
   download: api((room, fid) => slake.download(room, fid)),
+  fileThumb: api(async (fid) => {
+    const p = slake.filePath(fid)
+    if (!p || fs.statSync(p).size > 25 * 1024 * 1024) return null
+    const url = URL.createObjectURL(new Blob([fs.readFileSync(p)]))
+    try {
+      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url })
+      const k = Math.min(1, 480 / img.naturalWidth)
+      const c = document.createElement('canvas')
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k))
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+      return c.toDataURL('image/jpeg', 0.82)
+    } catch { return null } finally { URL.revokeObjectURL(url) }
+  }),
   saveFile: api(async (fid, fname) => {
     const p = slake.filePath(fid)
     if (!p) throw new Error('That file is gone')

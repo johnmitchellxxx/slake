@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('slake', {
   sendFile: (room, path, ttl) => call('sendFile', { room, path, ttl }),
   download: (room, fid) => call('download', { room, fid }),
   saveFile: (fid, fname) => call('saveFile', { fid, fname }),
+  fileThumb: (fid) => call('fileThumb', fid),
   onFileStatus: (fn) => ipcRenderer.on('fileStatus', (_e, x) => fn(x)),
   menu: (items) => call('menu', items),
   confirm: (opts) => call('confirm', opts),

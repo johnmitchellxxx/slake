@@ -559,6 +559,29 @@ const fmtDate = (ts) => new Date(ts).toLocaleDateString([], { month: 'short', da
 const expiresAt = (f) => f.ts + f.ttl
 const isGone = (f) => Date.now() >= expiresAt(f) || (f.status && f.status.state === 'expired')
 
+// Small previews of pictures, made once the file is here.
+const thumbs = new Map()   // fid -> data URL, or false when there isn't one
+const IMAGE_RE = /\.(jpe?g|png|gif|webp|bmp|avif)$/i
+function addThumb (card, fid) {
+  const url = thumbs.get(fid)
+  if (!url) return
+  const img = el('img', 'thumb')
+  img.src = url
+  img.alt = ''
+  card.classList.add('pic')
+  card.prepend(img)
+}
+async function loadThumb (fid) {
+  if (thumbs.has(fid)) return
+  thumbs.set(fid, false)
+  try {
+    const url = await s.fileThumb(fid)
+    if (!url) return
+    thumbs.set(fid, url)
+    for (const card of document.querySelectorAll('.file')) if (card.dataset.file === fid && !card.querySelector('.thumb')) addThumb(card, fid)
+  } catch {}
+}
+
 function fileCard (f) {
   const card = el('div', 'file')
   card.dataset.file = f.fid
@@ -586,6 +609,7 @@ function fileCard (f) {
     sub = `${fmtSize(f.size)} · waiting for someone who has it to come online`
   }
   card.append(el('span', 'file-icon', '📄'), el('span', 'file-name', f.fname), el('span', 'file-sub', sub), act)
+  if (st.state === 'ready' && IMAGE_RE.test(f.fname)) { addThumb(card, f.fid); loadThumb(f.fid) }
   if (st.state === 'downloading') {
     const bar = el('span', 'bar')
     const fill = el('span')

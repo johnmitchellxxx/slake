@@ -209,6 +209,10 @@ button.confirm { color: var(--danger) !important; }
 .file .file-sub { grid-column: 2; font-size: 12px; color: var(--muted); }
 .file .file-act { grid-column: 3; grid-row: 1 / span 2; }
 .file .file-act button { padding: 6px 12px; font-size: 13px; }
+.file .thumb { grid-column: 1 / -1; width: 100%; max-height: 240px; object-fit: cover; border-radius: calc(var(--radius) - 2px); margin-bottom: 6px; display: block; }
+.file.pic .file-icon, .file.pic .file-act { grid-row: 2 / span 2; }
+.file.pic .file-name { grid-row: 2; }
+.file.pic .file-sub { grid-row: 3; }
 .file .bar { grid-column: 2; height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 4px; }
 .file .bar span { display: block; height: 100%; background: var(--accent); }
 .file.gone { background: transparent; border-style: dashed; opacity: 0.75; }

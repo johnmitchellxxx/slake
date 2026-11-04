@@ -489,6 +489,16 @@ app.whenReady().then(async () => {
   })
   handle('sendFile', async ({ room, path: p, ttl }) => { await slake.sendFile(room, p, ttl) })
   handle('download', ({ room, fid }) => slake.download(room, fid))
+  // A small preview for pictures, shown in the chat once the file is here.
+  handle('fileThumb', async (fid) => {
+    const p = slake.filePath(fid)
+    if (!p || fs.statSync(p).size > 25 * 1024 * 1024) return null
+    const img = nativeImage.createFromPath(p)
+    if (img.isEmpty()) return null
+    const { width } = img.getSize()
+    const small = width > 480 ? img.resize({ width: 480, quality: 'good' }) : img
+    return 'data:image/jpeg;base64,' + small.toJPEG(82).toString('base64')
+  })
   handle('saveFile', async ({ fid, fname }) => {
     const r = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath('downloads'), path.basename(fname)) })
     if (r.canceled || !r.filePath) return false
