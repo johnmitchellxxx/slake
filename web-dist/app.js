@@ -652,7 +652,7 @@ for (const b of $('pending').querySelectorAll('[data-ttl]')) {
   b.onclick = () => { pending.ttl = Number(b.dataset.ttl); showPending() }
 }
 $('pendingCancel').onclick = () => { pending = null; showPending() }
-$('pendingSend').onclick = async () => {
+async function sendPending () {
   if (!pending || !current) return
   const p = pending
   pending = null
@@ -914,7 +914,10 @@ $('text').addEventListener('input', (e) => {
 $('composer').onsubmit = async (e) => {
   e.preventDefault()
   const t = $('text')
-  if (!t.value.trim() || !current) return
+  if (!current) return
+  // The one Send button: a picked file goes first, then any words with it.
+  if (pending) await sendPending()
+  if (!t.value.trim()) return
   try {
     await s.post(current, t.value)
     t.value = ''
