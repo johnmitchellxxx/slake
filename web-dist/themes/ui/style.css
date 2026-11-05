@@ -448,3 +448,4 @@ button.confirm { color: var(--danger) !important; }
 }
 .react-pop .pick { background: none; border: 0; box-shadow: none; padding: 6px 7px; font-size: 22px; line-height: 1; border-radius: 8px; cursor: pointer; filter: none; }
 .react-pop .pick:hover { background: var(--panel-2); }
+@media (max-width: 640px) { .react-pop { flex-wrap: wrap; max-width: 260px; } }

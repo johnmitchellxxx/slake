@@ -481,7 +481,10 @@ function noteText (rec) {
 }
 
 // ---------- Emoji reactions ----------
-const QUICK = ['🦄', '🦀', '🧲', '🔫', '💀', '🐦‍🔥']
+const QUICK = [
+  ['👍', 'I agree'], ['👎', 'I disagree'], ['❤️', 'Love that'], ['✅', 'Done'], ['👀', 'I see you'],
+  ['😮', "That's crazy"], ['🤯', 'Insane'], ['😢', 'Sad'], ['😡', 'Angry'], ['😂', 'Funny']
+]
 
 // Who has reacted to what. Each person's latest word on an emoji wins, so
 // tapping again takes it back.
@@ -540,9 +543,11 @@ function reactionsEl (m, reacts) {
 function reactPicker (anchor, m, mine) {
   document.querySelectorAll('.react-pop').forEach((n) => n.remove())
   const pop = el('div', 'react-pop')
-  for (const emoji of QUICK) {
+  for (const [emoji, label] of QUICK) {
     const b = el('button', 'pick', emoji)
     b.type = 'button'
+    b.title = label
+    b.setAttribute('aria-label', label)
     b.onclick = () => { pop.remove(); sendReaction(m, emoji, !(mine && mine.get(emoji) && mine.get(emoji).mine)) }
     pop.append(b)
   }
