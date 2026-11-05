@@ -286,6 +286,8 @@ document.addEventListener('touchstart', (e) => {
     hold.fired = true
     if (navigator.vibrate) navigator.vibrate(10)
     target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: hold.x, clientY: hold.y }))
+    // iOS also starts selecting text under a held finger; drop that so only our menu shows.
+    try { getSelection().removeAllRanges(); setTimeout(() => getSelection().removeAllRanges(), 60) } catch {}
   }, 520) }
 }, { passive: true })
 document.addEventListener('touchmove', (e) => {

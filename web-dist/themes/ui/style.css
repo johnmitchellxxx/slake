@@ -465,3 +465,10 @@ button.confirm { color: var(--danger) !important; }
 
 /* Space options button in the room header */
 .room-head .more { margin-left: auto; font-size: 22px; line-height: 1; padding: 6px 12px; min-width: 44px; min-height: 44px; }
+
+/* On a phone, press-and-hold opens our menu, not the system's text-selection bar. */
+@media (hover: none) {
+  .msg, .room-head, #spaces, .web-menu, .react-pop {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+}
