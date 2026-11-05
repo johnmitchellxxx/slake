@@ -862,7 +862,9 @@ class Slake extends EventEmitter {
   }
 
   _filePath (fid) { return path.join(this.filesDir, fid) }
-  _expired (rec) { return this.now() >= rec.ts + rec.body.ttl }
+  // Files no longer expire. (The note still carries a time limit so older
+  // copies of Slake, which do expire files, can read it.)
+  _expired (rec) { return false }
 
   fileStatus (rec) {
     const room = this.rooms.get(rec.room)
@@ -874,11 +876,11 @@ class Slake extends EventEmitter {
     return { state: auto || t ? 'waiting' : 'available', expiresAt: rec.ts + rec.body.ttl }
   }
 
-  async sendFile (roomId, filePath, ttl = 24 * HOUR) {
+  async sendFile (roomId, filePath) {
+    const ttl = 7 * 24 * HOUR
     this._needName()
     const room = this._room(roomId)
     if (room.removed) throw new Error("You're no longer in this room")
-    if (!TTLS.has(ttl)) throw new Error('Files last 1 hour, 1 day or 1 week')
     const st = await fs.promises.stat(filePath)
     if (!st.isFile()) throw new Error("That's not a file")
     // Fingerprint the file while copying it into Slake's short-term shelf.

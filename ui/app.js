@@ -481,7 +481,7 @@ function noteText (rec) {
 }
 
 // ---------- Emoji reactions ----------
-const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉']
+const QUICK = ['🦄', '🦀', '🧲', '🔫', '💀', '🐦‍🔥']
 
 // Who has reacted to what. Each person's latest word on an emoji wins, so
 // tapping again takes it back.
@@ -640,7 +640,7 @@ function fmtLeft (ms) {
 
 const fmtDate = (ts) => new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' })
 const expiresAt = (f) => f.ts + f.ttl
-const isGone = (f) => Date.now() >= expiresAt(f) || (f.status && f.status.state === 'expired')
+const isGone = (f) => !!(f.status && f.status.state === 'expired')
 
 // Small previews of pictures, made once the file is here.
 const thumbs = new Map()   // fid -> data URL, or false when there isn't one
@@ -671,12 +671,11 @@ function fileCard (f) {
   if (isGone(f)) {
     card.classList.add('gone')
     card.append(el('span', 'file-icon', '📄'), el('span', 'file-name', f.fname),
-      el('span', 'file-sub', `Sent ${fmtDate(f.ts)} · disappeared ${fmtDate(expiresAt(f))}`))
+      el('span', 'file-sub', `Sent ${fmtDate(f.ts)} · no longer available`))
     return card
   }
   const st = f.status || { state: 'waiting' }
-  const left = `Disappears in ${fmtLeft(expiresAt(f) - Date.now())}`
-  let sub = `${fmtSize(f.size)} · ${left}`
+  let sub = fmtSize(f.size)
   const act = el('span', 'file-act')
   if (st.state === 'ready') {
     const b = el('button', 'secondary', 'Save…')
@@ -687,7 +686,7 @@ function fileCard (f) {
     b.onclick = async () => { try { await s.download(f.room, f.fid) } catch (e) { toast(e.message) } }
     act.append(b)
   } else if (st.state === 'downloading') {
-    sub = `${Math.floor((st.progress || 0) * 100)}% of ${fmtSize(f.size)} · ${left}`
+    sub = `${Math.floor((st.progress || 0) * 100)}% of ${fmtSize(f.size)}`
   } else {
     sub = `${fmtSize(f.size)} · waiting for someone who has it to come online`
   }
@@ -814,7 +813,7 @@ function renderResults () {
   for (const { r, m, text } of hits.slice(0, 200)) {
     const row = el('div', 'result')
     const where = m.kind === 'file'
-      ? `#${plain(r)} · ${m.name} sent a file · ${fmtDate(m.ts)}${isGone(m) ? ' · disappeared' : ''}`
+      ? `#${plain(r)} · ${m.name} sent a file · ${fmtDate(m.ts)}${isGone(m) ? ' · no longer available' : ''}`
       : `#${plain(r)} · ${m.name} · ${fmtDate(m.ts)}`
     row.append(el('div', 'result-where', where))
     const t = el('div', 'result-text')

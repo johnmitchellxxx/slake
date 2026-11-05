@@ -97,18 +97,15 @@ commands, and paste your room invite. That's it — no accounts, no sign-up.
 - **History.** When you come online you swap notes with whoever's in your
   rooms and catch up on what you missed.
 
-## Files are fleeting
+## Files
 
-Drag a file onto a room (or click **+**), send it (it lasts **1 day**,
-then disappears). It goes straight from your computer to the
+Drag a file onto a room (or click **+**) and send it. It goes straight from your computer to the
 others in the room. There's no upload, no server, and no size limit.
 Files up to 50 MB download by themselves; bigger ones have a **Download**
 button. Save what you want to keep.
 
-When time's up, every copy of Slake deletes its copy. What stays is a stub
-with the file name, when it was sent and when it disappeared. Right-click a
-stub to **Ask [them] to resend**, or **Send it again…** if it was yours.
-Slake isn't storage; it's delivery.
+Files stay for as long as the space does, and the copy on your device stays
+until you leave the space or delete it.
 
 Someone who has the file needs to be online for you to get it.
 
@@ -187,8 +184,7 @@ the networking is all in `core.js`.
 ## Permanent on the desktop
 
 The desktop app keeps everything: every space's history is saved to a folder
-on your computer and stays there until you reset Slake. Nothing expires except
-files you sent as fleeting (1 hour / 1 day / 1 week). Leaving a space takes it
+on your computer and stays there until you reset Slake. Leaving a space takes it
 off your sidebar but keeps a backup copy of its history in the folder. To see
 the folder, click the Slake icon in the menu bar (system tray on Windows) and
 choose **Open Slake storage folder**. **Exit and Reset Slake on this Device**

@@ -62,7 +62,7 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   const src = path.join(tmp, 'load-in plot.pdf')
   const bytes = require('crypto').randomBytes(600 * 1024)
   fs.writeFileSync(src, bytes)
-  const frec = await john.sendFile(party, src, 24 * 3600 * 1000)
+  const frec = await john.sendFile(party, src)
   await until(() => sam.fileStatus(frec).state === 'ready', 'Sam gets the file')
   assert.ok(fs.readFileSync(sam.filePath(frec.body.fid)).equals(bytes))
   const saved = path.join(tmp, 'saved.pdf')
@@ -71,17 +71,13 @@ const texts = (s, roomId) => [...s.rooms.get(roomId).records.values()].filter((r
   assert.strictEqual(bob.filePath(frec.body.fid), null)
   console.log('✓ File went straight from John to Sam, checked byte-for-byte; Bob never got it')
 
-  // A bad timer is refused.
-  await assert.rejects(() => john.sendFile(party, src, 5000), /1 hour, 1 day or 1 week/)
-
-  // A day later the file is gone everywhere, but the stub stays.
-  for (const x of [john, sam]) { x.now = () => Date.now() + 25 * 3600 * 1000; x.purgeExpired() }
-  assert.strictEqual(sam.fileStatus(frec).state, 'expired')
-  assert.strictEqual(sam.filePath(frec.body.fid), null)
-  assert.strictEqual(john.filePath(frec.body.fid), null)
-  assert.ok(sam.rooms.get(party).records.has(frec.id))
+  // Files no longer expire: still there a month later.
+  for (const x of [john, sam]) { x.now = () => Date.now() + 30 * 24 * 3600 * 1000; x.purgeExpired() }
+  assert.strictEqual(sam.fileStatus(frec).state, 'ready')
+  assert.ok(sam.filePath(frec.body.fid))
+  assert.ok(john.filePath(frec.body.fid))
   assert.ok(fs.existsSync(saved))
-  console.log('✓ After its day, every Slake copy is deleted; the stub and Sam\'s saved copy remain')
+  console.log('✓ Files stay put; a month later every copy is still there')
   for (const x of [john, sam]) x.now = () => Date.now()
 
   // Lounges: the name is the code. Spelling doesn't matter, and nobody owns one.
