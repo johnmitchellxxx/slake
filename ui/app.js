@@ -482,9 +482,11 @@ function noteText (rec) {
 
 // ---------- Emoji reactions ----------
 const QUICK = [
-  ['👍', 'I agree'], ['👎', 'I disagree'], ['❤️', 'Love that'], ['✅', 'Done'], ['👀', 'I see you'],
-  ['😮', "That's crazy"], ['🤯', 'Insane'], ['😢', 'Sad'], ['😡', 'Angry'], ['😂', 'Funny']
+  ['👍', 'I agree'], ['👎', 'I disagree'], ['🦄', 'Love that'], ['🦀', 'Check!'],
+  ['👀', 'I see you'], ['🛸', "That's crazy"], ['🐦‍🔥', 'Insane'], ['💀', 'Funny'],
+  ['🌧️', 'Sad'], ['🧨', 'Angry'], ['🧲', 'Hooked'], ['🔫', 'Shots fired']
 ]
+const REACT_LABEL = new Map(QUICK)
 
 // Who has reacted to what. Each person's latest word on an emoji wins, so
 // tapping again takes it back.
@@ -524,7 +526,7 @@ function reactionsEl (m, reacts) {
       const chip = el('button', 'react' + (e.mine ? ' mine' : ''))
       chip.type = 'button'
       chip.append(el('span', 'em', emoji), el('span', 'ct', String(e.names.length)))
-      chip.title = e.names.join(', ')
+      chip.title = (REACT_LABEL.has(emoji) ? REACT_LABEL.get(emoji) + ': ' : '') + e.names.join(', ')
       if (open) chip.onclick = () => sendReaction(m, emoji, !e.mine)
       row.append(chip)
     }
@@ -544,7 +546,8 @@ function reactPicker (anchor, m, mine) {
   document.querySelectorAll('.react-pop').forEach((n) => n.remove())
   const pop = el('div', 'react-pop')
   for (const [emoji, label] of QUICK) {
-    const b = el('button', 'pick', emoji)
+    const b = el('button', 'pick')
+    b.append(el('span', 'pe', emoji), el('span', 'pl', label))
     b.type = 'button'
     b.title = label
     b.setAttribute('aria-label', label)
