@@ -358,7 +358,6 @@ function renderSidebar () {
   lounges.append(el('div', 'space-name', 'Spaces'))
   const lul = el('ul')
   rooms.filter((r) => r.lounge).sort(byTitle).forEach((r) => lul.append(roomItem(r)))
-  lounges.append(lul)
   const lform = el('form', 'new-room')
   const linput = el('input')
   linput.placeholder = '+ make or join a space'
@@ -381,7 +380,7 @@ function renderSidebar () {
       openRoom(id)
     } catch (err) { toast(err.message) }
   }
-  lounges.append(lform)
+  lounges.append(lform, lul)
   nav.append(lounges)
 
   // Direct messages, below everything else.
@@ -403,7 +402,7 @@ function renderSidebar () {
     dl.append(li)
   }
   dms.append(dl)
-  if (!dmRooms.length) dms.append(el('div', 'hint-line', 'Right-click someone to message them.'))
+  if (!dmRooms.length) dms.append(el('div', 'hint-line', (matchMedia('(hover: none)').matches ? 'Press and hold a name to message them.' : 'Right-click someone to message them.')))
   nav.append(dms)
 }
 
@@ -519,7 +518,7 @@ function reactionsEl (m, reacts) {
   const rm = roomById(current)
   const open = rm && !rm.removed && !rm.closedAt
   const mine = reacts.get(m.id)
-  if (!mine && !open) return null
+  if (!mine) return null
   const row = el('div', 'reacts')
   if (mine) {
     for (const [emoji, e] of mine) {
@@ -540,6 +539,19 @@ function reactionsEl (m, reacts) {
     row.append(add)
   }
   return row
+}
+
+// A small button that floats over a message's corner when you hover it
+// (computer only; on a phone, press and hold the message instead).
+function reactFloat (m, reacts) {
+  const rm = roomById(current)
+  if (!rm || rm.removed || rm.closedAt) return null
+  const add = el('button', 'react-float', '☺')
+  add.type = 'button'
+  add.title = 'React'
+  add.setAttribute('aria-label', 'React')
+  add.onclick = (ev) => { ev.stopPropagation(); reactPicker(add, m, reacts.get(m.id)) }
+  return add
 }
 
 function reactPicker (anchor, m, mine) {
@@ -611,6 +623,8 @@ function renderMessages () {
     row.append(av, meta, body)
     const rx = reactionsEl(m, reacts)
     if (rx) row.append(rx)
+    const fl = reactFloat(m, reacts)
+    if (fl) row.append(fl)
     box.append(row)
     prev = m
   }
@@ -857,7 +871,6 @@ s.onWallpapers((w) => { walls = w; applyWallpaper() })
 function renderAll () {
   showTheme()
   const cr = roomById(current)
-  $('leaveBtn').hidden = !(cr && !cr.dm)
   applyWallpaper()
   renderSidebar()
   renderHeader()
@@ -943,12 +956,18 @@ document.addEventListener('contextmenu', async (e) => {
       return
     }
 
+    let reactTarget = null
     const msgEl = t.closest('[data-msg]')
     const personEl = t.closest('[data-person]')
     const r = roomById(current)
     let fileRec = null
     if (msgEl && !selected) {
       const m = (records[current] || []).find((x) => x.id === msgEl.dataset.msg)
+      const rm = roomById(current)
+      if (m && (m.kind === 'msg' || m.kind === 'file') && rm && !rm.removed && !rm.closedAt) {
+        items.push({ id: 'react', label: 'React…' })
+        reactTarget = m
+      }
       if (m && m.kind === 'msg') items.push({ id: 'copyMsg', label: 'Copy message' })
       if (m && m.kind === 'file') {
         fileRec = m
@@ -967,6 +986,11 @@ document.addEventListener('contextmenu', async (e) => {
     }
     if (!items.length) return
     const choice = await s.menu(items)
+    if (choice === 'react' && reactTarget) {
+      const reacts = reactionMap(records[current] || [])
+      reactPicker(msgEl, reactTarget, reacts.get(reactTarget.id))
+      return
+    }
     if (choice === 'copyMsg') {
       const m = (records[current] || []).find((x) => x.id === msgEl.dataset.msg)
       await s.copyText(m.text)
@@ -1108,7 +1132,7 @@ $('meLine').onclick = () => {
   $('nameChangeInput').value = me.name
 }
 $('logoutBtn').onclick = async () => {
-  const ok = await s.confirm({ action: 'Reset', message: 'Exit and reset Slake on this device?', detail: "Your spaces, messages and files here are deleted and you start over with a new name. Other people keep what they already have. Themes and settings stay." })
+  const ok = await s.confirm({ action: 'Reset', message: 'Reset Slake on this device?', detail: "Your spaces, messages and files here are deleted and you start over with a new name. Other people keep what they already have. Themes and settings stay." })
   if (ok) await s.logout()
 }
 $('nameChange').onsubmit = (e) => { e.preventDefault(); rename($('nameChangeInput').value); $('avatarPicker').hidden = true }
@@ -1254,7 +1278,11 @@ async function refresh () {
 document.documentElement.dataset.platform = /Mac/.test(navigator.platform) ? 'mac' : /Win/.test(navigator.platform) ? 'win' : 'other'
 refresh()
 
-$('leaveBtn').onclick = () => { const r = roomById(current); if (r) leave(r).catch((e) => toast(e.message)) }
+$('roomMore').onclick = async () => {
+  const r = roomById(current)
+  if (!r) return
+  try { await runRoomChoice(r, await s.menu(roomMenu(r))) } catch (e) { toast(e.message) }
+}
 
 // The start-screen tagline: a different one each time you visit.
 {

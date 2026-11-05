@@ -439,9 +439,6 @@ button.confirm { color: var(--danger) !important; }
 }
 .react.mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); }
 .react .ct { font-size: 12px; color: var(--muted); }
-.react.add { opacity: 0; color: var(--muted); padding: 2px 9px; transition: opacity .12s; }
-.msg:hover .react.add, .react.add:focus-visible { opacity: 1; }
-@media (hover: none) { .react.add { opacity: .55; } }
 /* The reaction picker: a small grid, each emoji with its meaning underneath. */
 .react-pop {
   position: fixed; z-index: 60; display: grid; grid-template-columns: repeat(4, 66px); gap: 2px; padding: 6px; border-radius: 12px;
@@ -454,3 +451,17 @@ button.confirm { color: var(--danger) !important; }
 .react-pop .pick:hover { background: var(--panel-2); }
 .react-pop .pe { font-size: 24px; line-height: 1.1; }
 .react-pop .pl { font-size: 10.5px; line-height: 1.15; color: var(--muted); text-align: center; }
+
+/* Reaction button floats over the message corner: no space reserved, no uneven gaps. */
+.msg { position: relative; }
+.react-float {
+  position: absolute; top: -6px; right: 6px; opacity: 0; pointer-events: none; transition: opacity .12s;
+  background: #14141c; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+  padding: 2px 9px; font: inherit; font-size: 14px; line-height: 1.5; box-shadow: none; cursor: pointer; filter: none;
+  text-transform: none; letter-spacing: 0;
+}
+.msg:hover .react-float, .react-float:focus-visible { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .react-float { display: none; } }
+
+/* Space options button in the room header */
+.room-head .more { margin-left: auto; font-size: 22px; line-height: 1; padding: 6px 12px; min-width: 44px; min-height: 44px; }

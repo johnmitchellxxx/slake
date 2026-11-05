@@ -501,7 +501,7 @@ const RELEASES = 'https://github.com/johnmitchellxxx/slake/releases/latest'
 ;(() => {
   const st = document.createElement('style')
   st.textContent = `
-.get-desktop { position: fixed; top: 12px; right: 14px; z-index: 40; }
+.get-desktop { position: fixed; top: 12px; right: 70px; z-index: 40; }
 .get-desktop > button { background: rgba(127,127,127,.16); color: var(--text); border: 1px solid var(--line); border-radius: 999px;
   padding: 6px 12px; font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; box-shadow: none; text-transform: none; letter-spacing: 0; cursor: pointer; }
 .get-desktop > button:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
