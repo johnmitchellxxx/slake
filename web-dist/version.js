@@ -1,1 +1,1 @@
-window.SLAKE_VERSION = "0.9.4"
+window.SLAKE_VERSION = "0.9.5"

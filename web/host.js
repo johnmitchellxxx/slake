@@ -173,7 +173,7 @@ function unflash () {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { unread = 0; document.title = baseTitle; unflash() } })
 
 function wire () {
-  slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]) })
+  slake.on('rooms', () => { send('rooms', rooms()); send('online', [...slake.onlineKeys()]); if (pushWanted()) pushSyncSoon() })
   slake.on('dm', () => send('rooms', rooms()))
   slake.on('closed', (roomId, title, by) => { if (by !== slake.me.name) send('closed', { title, by }) })
   slake.on('file', (roomId, fid) => {
@@ -305,6 +305,81 @@ document.addEventListener('touchend', (e) => {
 // Add to Home Screen: a small helper so it opens like an app.
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {})
 
+// ---- Phone buzz (Web Push) ----
+const PUSH_URL = 'https://slake-intro.xjohnmitchell.workers.dev/push/'
+const pushWanted = () => { try { return localStorage.getItem('slake-push') === '1' } catch { return false } }
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && location.protocol === 'https:'
+async function pushSub () {
+  if (!pushSupported()) return null
+  const reg = await navigator.serviceWorker.ready
+  return reg.pushManager.getSubscription()
+}
+async function spaceHash (id) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('slake-push:' + id))
+  return [...new Uint8Array(d)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+async function pushSpaces () {
+  const out = []
+  for (const r of slake.rooms.values()) if (showRoom(r)) out.push(await spaceHash(r.id))
+  return out
+}
+async function pushSync () {
+  try {
+    const sub = await pushSub()
+    if (!sub || !pushWanted()) return
+    await fetch(PUSH_URL + 'subscribe', { method: 'POST', body: JSON.stringify({ sub: sub.toJSON(), spaces: await pushSpaces() }) })
+  } catch {}
+}
+let pushTimer = null
+const pushSyncSoon = () => { clearTimeout(pushTimer); pushTimer = setTimeout(pushSync, 3000) }
+const pingAt = new Map()
+async function pingPush (roomId) {
+  try {
+    if (!pushSupported()) return
+    const now = Date.now()
+    if (now - (pingAt.get(roomId) || 0) < 3000) return
+    pingAt.set(roomId, now)
+    const room = slake.rooms.get(roomId)
+    if (!room) return
+    const sub = await pushSub()
+    fetch(PUSH_URL + 'notify', { method: 'POST', keepalive: true, body: JSON.stringify({ space: await spaceHash(roomId), name: slake.me.name, label: roomInfo(room).title, self: sub ? sub.endpoint : undefined }) }).catch(() => {})
+  } catch {}
+}
+const pushApi = {
+  pushStatus: async () => {
+    if (!pushSupported()) return isIOS() && !isStandalone() ? 'needs-install' : 'unsupported'
+    if (isIOS() && !isStandalone()) return 'needs-install'
+    if (Notification.permission === 'denied') return 'blocked'
+    return (await pushSub()) && pushWanted() ? 'on' : 'off'
+  },
+  pushEnable: async () => {
+    if (!pushSupported()) throw new Error("This browser can't do notifications")
+    if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications were not allowed. You can change that in your phone or browser settings.')
+    const reg = await navigator.serviceWorker.ready
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      const { key } = await (await fetch(PUSH_URL + 'key')).json()
+      const raw = atob(key.replace(/-/g, '+').replace(/_/g, '/'))
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(raw, (c) => c.charCodeAt(0)) })
+    }
+    try { localStorage.setItem('slake-push', '1') } catch {}
+    const res = await fetch(PUSH_URL + 'subscribe', { method: 'POST', body: JSON.stringify({ sub: sub.toJSON(), spaces: await pushSpaces() }) })
+    if (!res.ok) throw new Error("Couldn't reach Slake's server. Try again in a moment.")
+    return 'on'
+  },
+  pushDisable: async () => {
+    try { localStorage.removeItem('slake-push') } catch {}
+    const sub = await pushSub()
+    if (sub) {
+      fetch(PUSH_URL + 'unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {})
+      await sub.unsubscribe()
+    }
+    return 'off'
+  }
+}
+
 const style = document.createElement('style')
 style.textContent = `
 .web-menu { position: fixed; z-index: 50; min-width: 190px; padding: 5px; border-radius: 10px;
@@ -337,7 +412,8 @@ window.slake = {
   pickImage: api(async () => { const f = await pickFiles('image/*'); return f ? squareImage(f) : null }),
   createRoom: api((title) => slake.createRoom(title, { waitForNetwork: false })),
   joinRoom: api((inv) => slake.joinRoom(inv, { waitForNetwork: false })),
-  post: api((room, text) => { slake.post(room, text) }),
+  post: api((room, text) => { slake.post(room, text); pingPush(room) }),
+  ...pushApi,
   react: api((room, to, emoji, on) => { slake.react(room, to, emoji, on) }),
   copyInvite: api((room) => copy(slake.invite(room))),
   inviteText: api((room) => slake.invite(room)),
@@ -359,7 +435,7 @@ window.slake = {
     const tmp = dir + '/' + f.name.replace(/[\\/]/g, '_')
     fs.mkdirSync(dir)
     fs.writeFileSync(tmp, Buffer.from(await f.arrayBuffer()))
-    try { await slake.sendFile(room, tmp, ttl) } finally { try { fs.unlinkSync(tmp) } catch {} picked.delete(token) }
+    try { await slake.sendFile(room, tmp, ttl); pingPush(room) } finally { try { fs.unlinkSync(tmp) } catch {} picked.delete(token) }
   }),
   download: api((room, fid) => slake.download(room, fid)),
   fileThumb: api(async (fid) => {

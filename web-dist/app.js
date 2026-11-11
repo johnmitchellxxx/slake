@@ -1067,7 +1067,32 @@ $('lookCancel').onclick = () => { $('lookDialog').hidden = true }
 $('lookSave').onclick = async () => {
   try { await s.setSpaceTheme($('lookDialog').dataset.room, $('lookSelect').value); $('lookDialog').hidden = true; await refresh(); toast('Space look set') } catch (e) { toast(e.message) }
 }
-$('settingsBtn').onclick = () => { $('ownThemeBox').checked = ownThemeAlways(); $('avatarPicker').hidden = true; $('settingsDialog').hidden = false }
+async function showPushRow () {
+  const row = $('pushRow')
+  if (typeof s.pushStatus !== 'function') return
+  let st = 'unsupported'
+  try { st = await s.pushStatus() } catch {}
+  if (st === 'unsupported') { row.hidden = true; return }
+  row.hidden = false
+  const box = $('pushBox'), note = $('pushNote')
+  box.checked = st === 'on'
+  box.disabled = st === 'needs-install' || st === 'blocked'
+  note.textContent = {
+    on: 'You\u2019ll get a buzz with the sender and space name. Never the message itself.',
+    off: 'Get a buzz when someone writes, even with Slake closed. It shows who and where, never the message.',
+    blocked: 'Notifications are blocked. Turn them on for Slake in your phone or browser settings.',
+    'needs-install': 'On iPhone, tap Share, then Add to Home Screen, and open Slake from there. Then this switch works.'
+  }[st] || ''
+}
+$('pushBox').onchange = async (e) => {
+  const box = e.target
+  box.disabled = true
+  try {
+    if (box.checked) { await s.pushEnable(); toast('Buzz is on') } else { await s.pushDisable(); toast('Buzz is off') }
+  } catch (err) { box.checked = !box.checked; toast(err.message, 4000) }
+  await showPushRow()
+}
+$('settingsBtn').onclick = () => { $('ownThemeBox').checked = ownThemeAlways(); $('avatarPicker').hidden = true; $('settingsDialog').hidden = false; showPushRow() }
 $('settingsClose').onclick = () => { $('settingsDialog').hidden = true }
 $('ownThemeBox').onchange = (e) => { try { localStorage.setItem(OWN_KEY, e.target.checked ? '1' : '0') } catch {} ; shownTheme = null; showTheme() }
 
